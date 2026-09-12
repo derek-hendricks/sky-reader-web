@@ -1,0 +1,33 @@
+name: Theme submission
+description: Share a custom Sky Reader theme for the gallery
+title: "[Theme] "
+labels: ["theme-submission"]
+body:
+  - type: input
+    id: theme-name
+    attributes:
+      label: Theme name
+    validations:
+      required: true
+  - type: textarea
+    id: theme-json
+    attributes:
+      label: Theme settings
+      description: Paste the exported settings from Sky Reader's "Create Theme" panel.
+      render: json
+    validations:
+      required: true
+  - type: input
+    id: screenshot
+    attributes:
+      label: Screenshot URL
+      description: Drag and drop an image into this box on GitHub, then paste the link it generates here.
+    validations:
+      required: false
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Anything else worth knowing — inspiration, font pairing suggestions, etc.
+    validations:
+      required: false
