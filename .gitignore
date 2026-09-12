@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Build output — adjust once you pick a site tool
+# (dist/ for Vite, build/ for Create React App, _site/ for Jekyll, public/ for Hugo, etc.)
+/dist
+/build
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
