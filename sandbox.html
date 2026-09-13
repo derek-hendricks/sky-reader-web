@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Sky Reader — Try it</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;1,7..72,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Spectral:ital,wght@0,400;0,500;1,400&family=Montserrat:wght@400;500&family=Lato:wght@400;700&family=VT323:wght@400&family=Press+Start+2P&family=Stardos+Stencil:wght@400;700&family=Tilt+Warp:wght@100..900&display=swap" rel="stylesheet">
+<style>
+/* ─────────────────────────────────────────────────────────────────
+   Sky Reader Sandbox — sandbox.html
+   PASS 1 of the public try-it-yourself formatter for sky-reader-web.
+
+   Ported from the extension's reader.js/reader.html/popup.html. Kept
+   in this single file (HTML + CSS + JS together) since it has no build
+   step, matching how the extension itself is written.
+
+   IN THIS PASS: paste text -> paginate -> segment -> all 6 themes'
+   colors/fonts -> full Reading/Gradients/Colors/Themes toolbar,
+   including Create Theme.
+
+   DEFERRED TO A LATER PASS (see applyTheme() below for the hook point):
+     - GeoCities environment: banner strip/popups, guestbook widget,
+       Groovy Text / Star Trail arcade buttons
+     - Scribble Pad: hole-punch/doodle margin art, the ruled-line
+       overlay, the draw-with-a-pen canvas
+     - Starry Night: twinkling canvas star field + clickable moon
+     - CRT: the little beige control-panel widget (power/glow/turbo)
+     - Notes, Edit mode, Export, Speed Read (RSVP), Find-in-article
+
+   STORAGE: this file keeps all settings in a plain in-memory object
+   (see `S` below) rather than localStorage. That's deliberate for
+   this preview environment. Once this is actually deployed as a real
+   page, swap the two no-op functions saveSettings()/saveCustomThemes()
+   near the top of the script for real localStorage reads/writes --
+   the shape already matches what sync.js's srLocalStorageAdapter()
+   expects, so it's a small, contained change.
+   ───────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { min-height: 100%; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: #f7f5f2;
+  color: #1a1714;
+}
+
+/* ════════════════════════════════════════════
+   INTRO / LANDING VIEW (the sandbox's own chrome —
+   matches popup.html's established palette: warm
+   cream + blue accent, DM Serif Display headline)
+════════════════════════════════════════════ */
+#sb-intro {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 72px 24px 100px;
+}
+#sb-intro-inner { width: 100%; max-width: 680px; }
+#sb-intro h1 {
+  font-family: 'DM Serif Display', serif;
+  font-size: 40px;
+  font-weight: 400;
+  letter-spacing: -0.5px;
+  color: #1a1714;
+  margin-bottom: 10px;
+}
+#sb-intro .sb-intro-sub {
+  font-size: 16px;
+  color: #7a746c;
+  line-height: 1.6;
+  margin-bottom: 36px;
+  max-width: 58ch;
+}
+#sb-text-input {
+  width: 100%;
+  min-height: 260px;
+  background: #fff;
+  border: 1px solid #e4e0da;
+  border-radius: 10px;
+  padding: 18px 20px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #1a1714;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.15s;
+}
+#sb-text-input::placeholder { color: #a39d94; }
+#sb-text-input:focus { border-color: #3b6ea5; }
+#sb-intro-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 14px;
+}
+#sb-sample-link {
+  font-size: 13px;
+  color: #3b6ea5;
+  cursor: pointer;
+  background: none;
+  border: none;
+  font-family: inherit;
+  padding: 0;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  transition: text-decoration-color 0.15s;
+}
+#sb-sample-link:hover { text-decoration-color: #3b6ea5; }
+#sb-format-btn {
+  padding: 13px 28px;
+  background: #3b6ea5;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+#sb-format-btn:hover { background: #2d5585; }
+#sb-format-btn:active { transform: scale(0.99); }
+#sb-intro-note {
+  margin-top: 22px;
+  font-size: 12px;
+  color: #9a948c;
+  font-style: italic;
+  line-height: 1.6;
+}
+
+/* ════════════════════════════════════════════
+   READER VIEW (ported from reader.html)
+════════════════════════════════════════════ */
+#sb-reader { display: none; }
+
+#sb-reader-body {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  padding: 64px 48px 100px;
+  overflow-x: hidden;
+}
+#sb-reader-body.sb-toolbar-hidden { padding-top: 20px; }
+#sb-reader-body.sb-toolbar-hidden #sb-toolbar { display: none; }
+
+#sb-page-bg { position: fixed; inset: 0; z-index: 0; transition: background 0.2s; }
+
+#sb-panel {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  border-radius: 4px;
+  padding: 48px 56px 80px;
+  align-self: flex-start;
+  transition: background 0.2s, max-width 0.15s;
+}
+
+#sb-top-controls {
+  position: fixed;
+  top: 10px;
+  right: 14px;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#sb-back-btn, #sb-toolbar-toggle {
+  background: #f0ede8;
+  border: 1px solid #ddd9d3;
+  border-radius: 6px;
+  color: #555;
+  font-size: 13px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 5px 11px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: background 0.15s, color 0.15s;
+}
+#sb-back-btn:hover { background: #e8463a; border-color: #e8463a; color: #fff; }
+#sb-toolbar-toggle:hover { background: #3b6ea5; border-color: #3b6ea5; color: #fff; }
+
+#sb-content { display: block; text-rendering: optimizeLegibility; }
+.sb-line { transform: translateZ(0); will-change: transform; }
+#sb-content .sb-p { margin: 0 0 0.75em; font-size: inherit; line-height: inherit; }
+#sb-content .sb-segment { margin-bottom: 0.45em; }
+#sb-content .sb-segment-start { margin-top: 1.3em; }
+#sb-content .sb-segment-start:first-child { margin-top: 0; }
+#sb-content .sb-title {
+  font-size: 1.55em; font-weight: 600; line-height: 1.25;
+  margin-bottom: 1.1em; letter-spacing: -0.01em; opacity: 0.92; font-style: italic;
+}
+#sb-content .sb-meta-bar {
+  font-size: 0.78em; opacity: 0.5; padding: 0.5em 0; margin-top: -0.6em; margin-bottom: 1.8em;
+  border-top: 1px solid currentColor; border-bottom: 1px solid currentColor;
+  letter-spacing: 0.05em; font-style: normal; font-weight: normal;
+}
+
+/* ── Toolbar ── */
+#sb-toolbar {
+  position: fixed; top: 0; left: 0; right: 0; height: 48px; z-index: 9999;
+  background: #ffffff; border-bottom: 1px solid #e0ddd8;
+  display: flex; align-items: stretch; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: thin; scrollbar-color: #d8d4ce transparent;
+}
+#sb-toolbar::-webkit-scrollbar { height: 4px; }
+#sb-toolbar::-webkit-scrollbar-thumb { background: #d8d4ce; border-radius: 2px; }
+.sb-tb-btn {
+  height: 100%; padding: 0 14px; background: none; border: none;
+  border-right: 1px solid #e8e5e0; font-size: 13px; font-family: inherit; color: #2a2825;
+  cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 5px;
+  transition: background 0.12s; flex-shrink: 0;
+}
+.sb-tb-btn:hover { background: #f5f3f0; }
+.sb-tb-btn.active { background: #eeeae4; }
+.sb-caret { font-size: 10px; opacity: 0.5; margin-top: 1px; }
+.sb-tb-dropdown { position: relative; display: flex; align-items: stretch; flex-shrink: 0; }
+.sb-tb-panel {
+  display: none; position: fixed; top: 48px; min-width: 220px; max-width: 280px;
+  background: #edeae5; border: 1px solid #e0ddd8; border-top: none; border-radius: 0 0 8px 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1); z-index: 99999; padding: 8px 0 12px;
+  max-height: 70vh; overflow-y: auto;
+}
+.sb-tb-panel.open { display: block; }
+.sb-option { padding: 8px 16px; font-size: 13px; color: #2a2825; cursor: pointer; display: flex; align-items: center; transition: background 0.1s; }
+.sb-option:hover { background: #e0dbd4; }
+.sb-option.selected { background: #e8f0fb; color: #2d5585; font-weight: 500; }
+.sb-label { padding: 10px 16px 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.7px; text-transform: uppercase; color: #9a948c; }
+.sb-divider { height: 1px; background: #ede9e4; margin: 8px 0; }
+.sb-row { display: flex; align-items: center; gap: 8px; padding: 6px 16px; flex-wrap: wrap; }
+.sb-action-btn {
+  padding: 6px 14px; border: 1px solid #c8c4be; border-radius: 5px; background: #e8e4de;
+  color: #2a2825; font-size: 12px; font-family: inherit; cursor: pointer; transition: background 0.15s, opacity 0.15s;
+}
+.sb-action-btn:hover { background: #dedad4; }
+.sb-action-btn.primary { background: #3b6ea5; border-color: #3b6ea5; color: #fff; }
+.sb-action-btn.primary:hover { background: #2d5585; }
+.sb-num { min-width: 40px; text-align: center; font-size: 13px; color: #444; background: #f5f3f0; border: 1px solid #e0ddd8; border-radius: 4px; padding: 4px 8px; }
+.sb-theme-name-input { width: 100%; padding: 6px 10px; font-size: 13px; font-family: inherit; border: 1px solid #e0ddd8; border-radius: 4px; background: #faf9f8; color: #2a2825; outline: none; }
+.sb-theme-name-input:focus { border-color: #3b6ea5; }
+.sb-hex-input { width: 90px; padding: 5px 8px; font-size: 12px; font-family: monospace; border: 1px solid #e0ddd8; border-radius: 4px; background: #faf9f8; color: #2a2825; outline: none; }
+.sb-hex-input:focus { border-color: #3b6ea5; }
+.sb-toggle { position: relative; display: inline-block; width: 38px; height: 22px; cursor: pointer; }
+.sb-toggle input { opacity: 0; width: 0; height: 0; }
+.sb-toggle-slider { position: absolute; inset: 0; background: #ccc; border-radius: 22px; transition: background 0.2s; }
+.sb-toggle-slider::before { content: ''; position: absolute; width: 16px; height: 16px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: transform 0.2s; }
+.sb-toggle input:checked + .sb-toggle-slider { background: #3b6ea5; }
+.sb-toggle input:checked + .sb-toggle-slider::before { transform: translateX(16px); }
+.sb-toggle-state { font-size: 12px; color: #666; min-width: 20px; }
+.sb-colour-pick-wrap { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.sb-pick-label { font-size: 11px; color: #9a948c; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+.sb-colour-picker { -webkit-appearance: none; appearance: none; width: 52px; height: 36px; border: 1px solid #d0ccc8; border-radius: 6px; padding: 0; background: transparent; cursor: pointer; }
+.sb-colour-picker::-webkit-color-swatch-wrapper { padding: 2px; }
+.sb-colour-picker::-webkit-color-swatch { border: none; border-radius: 4px; }
+.sb-font-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 4px 8px 8px; }
+.sb-font-cell { padding: 7px 10px; font-size: 13px; color: #2a2825; cursor: pointer; border-radius: 5px; transition: background 0.1s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sb-font-cell:hover { background: #f5f3f0; }
+.sb-font-cell.selected { background: #e8f0fb; color: #2d5585; font-weight: 500; }
+.sb-theme-option { display: flex; align-items: center; gap: 10px; padding: 9px 16px; cursor: pointer; font-size: 13px; color: #2a2825; transition: background 0.1s; }
+.sb-theme-option:hover { background: #f5f3f0; }
+.sb-theme-option.selected { background: #e8f0fb; color: #2d5585; font-weight: 500; }
+.sb-theme-swatch { width: 32px; height: 32px; border-radius: 6px; border: 2px solid #ccc; flex-shrink: 0; position: relative; overflow: hidden; }
+.sb-theme-swatch-inner { position: absolute; bottom: 0; left: 0; right: 0; height: 55%; border-radius: 3px 3px 0 0; }
+
+/* ── Pagination footer ── */
+#sb-page-footer { display: none; margin-top: 3.5em; padding-top: 1.8em; border-top: 1px solid currentColor; opacity: 0.9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+.sb-pf-row { display: flex; align-items: center; justify-content: center; gap: 20px; user-select: none; }
+.sb-pf-btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 22px; border: 1px solid currentColor; border-radius: 999px; background: transparent; color: inherit; font-size: 13px; font-family: inherit; cursor: pointer; opacity: 0.55; transition: opacity 0.18s, background 0.18s; white-space: nowrap; }
+.sb-pf-btn:not(:disabled):hover { opacity: 1; background: rgba(128,128,128,0.1); }
+.sb-pf-btn:disabled { opacity: 0.18; cursor: default; }
+.sb-pf-center { display: flex; align-items: center; gap: 7px; min-width: 80px; justify-content: center; }
+.sb-pf-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: 0.22; cursor: pointer; transition: opacity 0.18s, transform 0.18s; flex-shrink: 0; }
+.sb-pf-dot.active { opacity: 0.78; transform: scale(1.4); }
+.sb-pf-dot:not(.active):hover { opacity: 0.48; }
+.sb-pf-counter { font-size: 12px; opacity: 0.6; letter-spacing: 0.5px; }
+
+/* ── Side click-zones + floating page label ── */
+#sb-page-prev, #sb-page-next {
+  display: none; position: fixed; top: 0; bottom: 0; width: 100px; z-index: 0;
+  cursor: pointer; align-items: center; transition: background 0.3s; background: transparent; user-select: none;
+}
+#sb-page-prev { left: 0; justify-content: flex-start; }
+#sb-page-next { right: 0; justify-content: flex-end; }
+.sb-arrow { font-size: 32px; color: #444; opacity: 0; transition: opacity 0.3s; padding: 0 22px; font-family: sans-serif; line-height: 1; pointer-events: none; }
+#sb-page-label {
+  display: none; position: fixed; bottom: 14px; right: 18px; z-index: 9998; font-size: 11px; color: #999;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; letter-spacing: 0.4px; pointer-events: none; opacity: 0.5;
+}
+
+/* ── Rich content (paragraphs from pasted text only in this pass) ── */
+#sb-content p { margin: 0 0 1.1em; line-height: inherit; font-size: inherit; }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════ INTRO / LANDING ════════════════════════ -->
+<div id="sb-intro">
+  <div id="sb-intro-inner">
+    <h1>See your text, formatted</h1>
+    <p class="sb-intro-sub">Paste in an article, an essay, anything — Sky Reader will paginate it and let you try every theme, right here, before you install anything.</p>
+    <textarea id="sb-text-input" placeholder="Paste some text here…"></textarea>
+    <div id="sb-intro-actions">
+      <button id="sb-sample-link">Try a sample instead</button>
+      <button id="sb-format-btn">Format</button>
+    </div>
+    <p id="sb-intro-note">Settings you change below reset when you reload this page — the real extension saves them for you across every article.</p>
+  </div>
+</div>
+
+<!-- ════════════════════════ READER ════════════════════════ -->
+<div id="sb-reader">
+  <div id="sb-top-controls">
+    <button id="sb-toolbar-toggle">
+      <svg viewBox="0 0 12 8" width="12" height="8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition:transform 0.2s"><polyline points="1,7 6,1 11,7"/></svg>
+      <span id="sb-toolbar-toggle-text">Hide Bar</span>
+    </button>
+    <button id="sb-back-btn">
+      <svg viewBox="0 0 10 10" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="1" y1="1" x2="9" y2="9"/><line x1="9" y1="1" x2="1" y2="9"/></svg>
+      Edit text
+    </button>
+  </div>
+
+  <div id="sb-page-bg"></div>
+
+  <div id="sb-reader-body">
+    <div id="sb-panel">
+      <div id="sb-content"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ── Theme / settings data (ported from reader.js) ────────────────
+  const FONTS = ["Georgia","Times New Roman","Literata","EB Garamond","Crimson Text","Spectral","Montserrat","Lato","VT323","Press Start 2P","Stardos Stencil","Tilt Warp"];
+
+  const BG_PRESETS = {
+    Paper: { text: "#f0e6c4", font: "#231a08" },
+    Light: { text: "#f5f0e8", font: "#1a1714" },
+    Ink: { text: "#0d0d0d", font: "#e8e0d0" },
+    Cerulean: { text: "#1a3a5c", font: "#dde8f5" },
+  };
+  const PAGE_BG_PRESETS = { Parchment: "#c0b098", Snow: "#e8e8e8", Licorice: "#1a1a1a" };
+  const GRADIENT_PRESETS = {
+    "Snow · Ash":  ["#f5f5f5", "#b0b0b0"],
+    "Onyx · Ash":  ["#111111", "#555555"],
+    "Warm Ink":    ["#2c1f0a", "#6b5030"],
+    "Starlight":   ["#7ab8d4", "#d4e8f0"],
+    "Terminal":    ["#1aff1a", "#00aa00"],
+    "Neon":        ["#ff00cc", "#00e5ff"],
+    "Candlelight": ["#b8a888", "#7a6850"],
+    "Soft Mist":   ["#c8d0d8", "#8898a8"],
+    "Blue · Red":  ["#1244a8", "#b52020"],
+  };
+
+  const DEFAULT_SETTINGS = {
+    fontFamily: "Georgia", fontSize: 1.6, lineHeight: 1.45, charsPerLine: 120,
+    bgPreset: "", textBg: "#1d1a15", fontColor: "#c8bfaa", pageBg: "#141210",
+    gradientsOn: true, gradientStart: "#b8a888", gradientEnd: "#7a6850",
+    dimness: 0, theme: "dusk", segmentOn: false,
+    toolbarBg: "", toolbarFontColor: "",
+  };
+
+  const THEMES = {
+    default:     { label: "Parchment",       pageBg: "#c0b89e", textBg: "#f0e6c4", fontColor: "#231a08", bgPreset: "Paper", gradientStart: "#2c1f0a", gradientEnd: "#6b5030", gradientsOn: true },
+    starry:      { label: "Starry Night",    pageBg: "#06181f", textBg: "#0d2535", fontColor: "#c8e0f0", bgPreset: "",      gradientStart: "#7ab8d4", gradientEnd: "#d4e8f0", gradientsOn: true },
+    crt:         { label: "Green Screen CRT", pageBg: "#0a0f0a", textBg: "#0d1a0d", fontColor: "#33ff33", bgPreset: "",     gradientStart: "#1aff1a", gradientEnd: "#00aa00", gradientsOn: true, fontFamily: "VT323", charsPerLine: 90 },
+    nineties:    { label: "GeoCities",       pageBg: "#000014", textBg: "#0a0028", fontColor: "#e0f7ff", bgPreset: "",     gradientStart: "#ff00cc", gradientEnd: "#00e5ff", gradientsOn: false, fontFamily: "Press Start 2P", fontSize: 1.0, charsPerLine: 90 },
+    scribblepad: { label: "School Book",     pageBg: "#ccc8bc", textBg: "#fef9e2", fontColor: "#1a1a2e", bgPreset: "",     gradientsOn: false, gradientStart: "#1244a8", gradientEnd: "#b52020" },
+    dusk:        { label: "Dark · Eye Gentle", pageBg: "#141210", textBg: "#1d1a15", fontColor: "#c8bfaa", bgPreset: "",   gradientStart: "#b8a888", gradientEnd: "#7a6850", gradientsOn: true },
+  };
+
+  const SAMPLE_TEXT = "The Art of Paying Attention\n\nMost advice about focus treats it like a muscle: train it, and it grows. But attention behaves less like a muscle and more like a garden. It doesn't strengthen so much as it needs tending — weeded of distraction, watered by rest, given room to grow toward whatever light you point it at.\n\nThe difference matters because muscles respond to force. You can grit your teeth through a harder set of reps. A garden doesn't respond to force at all; force just tramples what's already growing. What a garden responds to is conditions — the quality of the soil, the consistency of care, the absence of things that choke it out.\n\nSo the real question isn't \"how do I focus harder.\" It's \"what conditions make focus possible at all, and which of them am I currently trampling.\"";
+
+  // ── In-memory storage (see file header) ───────────────────────────
+  let S = Object.assign({}, DEFAULT_SETTINGS);
+  let _customThemes = {};
+  function saveSettings() { /* in-memory only in this preview — see file header for the localStorage swap */ }
+  function saveCustomThemes() { /* in-memory only in this preview — see file header for the localStorage swap */ }
+
+  // ── Pagination state ───────────────────────────────────────────────
+  let _allParagraphs = [];
+  let _pageRanges = [];
+  let _currentPage = 0;
+  let _isPaginated = false;
+
+  function getPaginateThreshold() { return S.theme === "scribblepad" ? 1000 : 1500; }
+  function getWordsPerPage()      { return S.theme === "scribblepad" ? 400  : 800; }
+
+  // ── Paragraph parsing (ported verbatim from reader.js) ─────────────
+  function parseParagraphs(rawText) {
+    const paras = rawText.split(/\n{2,}/).map((p) => p.trim()).filter((p) => p.length > 0);
+    const result = [];
+    let firstTitleDone = false, metaPhase = false, metaBuffer = [];
+    function flushMeta() {
+      if (metaBuffer.length === 0) return;
+      result.push({ text: metaBuffer.join(' · '), isTitle: false, isMeta: true });
+      metaBuffer = [];
+    }
+    paras.forEach((para, i) => {
+      let isTitle = para.startsWith("__TITLE__");
+      let text = isTitle ? para.slice(9) : para;
+      if (!isTitle && i === 0 && text.length <= 160 && text.split(/\s+/).length <= 20) isTitle = true;
+      const isAllCaps = text === text.toUpperCase() && text.match(/[A-Z]/);
+      if (!isTitle && isAllCaps) isTitle = true;
+      const isHeading = /^(chapter|part|book|volume|section|prologue|epilogue|interlude)\b/i.test(text) && text.length < 60;
+      if (!isTitle && isHeading) isTitle = true;
+      if (!isTitle && text.length < 20 && !text.match(/[.!?]/)) {
+        const UI_NOISE = /^(watch|steam[\s‌]*page|release|developer[s]?|platform[s]?|by\s|via\s|share|subscribe|sign[‌\s-]*in|article\s+continues|you\s+may\s+like|latest\s+videos|this\s+advertisement|recommended\s+videos?|video\s+player\s+is)/i;
+        if (/^[A-Z\u201C"]/.test(text) && !UI_NOISE.test(text) && text.split(/\s+/).length <= 6) {
+          isTitle = true;
+        } else {
+          if (metaPhase) { flushMeta(); metaPhase = false; }
+          return;
+        }
+      }
+      if (isTitle) {
+        if (!firstTitleDone) { firstTitleDone = true; metaPhase = true; result.push({ text, isTitle: true }); }
+        else if (metaPhase) {
+          const isChapterHeading = /^(chapter|part|book|volume|section|prologue|epilogue|interlude)\b/i.test(text) && text.length < 60;
+          if (!isChapterHeading && text.length <= 55 && text.split(/\s+/).length <= 6) { metaBuffer.push(text); }
+          else { flushMeta(); metaPhase = false; result.push({ text, isTitle: true }); }
+        } else { result.push({ text, isTitle: true }); }
+      } else {
+        if (metaPhase) {
+          const looksLikeMeta = text.length <= 120 && !text.match(/[.!?]/) && text.split(/\s+/).length <= 12;
+          if (looksLikeMeta) { metaBuffer.push(text); return; }
+          flushMeta(); metaPhase = false;
+        }
+        result.push({ text, isTitle: false });
+      }
+    });
+    flushMeta();
+    return result;
+  }
+
+  function buildPages(paras) {
+    const totalWords = paras.reduce((sum, p) => sum + p.text.split(/\s+/).length, 0);
+    if (totalWords <= getPaginateThreshold()) return [{ start: 0, end: paras.length }];
+    const pages = []; let start = 0, wordCount = 0;
+    const wordsPerPage = getWordsPerPage();
+    for (let i = 0; i < paras.length; i++) {
+      wordCount += paras[i].text.split(/\s+/).length;
+      if (wordCount >= wordsPerPage && i >= start) { pages.push({ start, end: i + 1 }); start = i + 1; wordCount = 0; }
+    }
+    if (start < paras.length) pages.push({ start, end: paras.length });
+    return pages;
+  }
+
+  function splitIntoSentences(text) {
+    const ABBREVS = /\b(Mr|Mrs|Ms|Miss|Dr|Prof|Sr|Jr|Snr|vs|etc|approx|est|vol|no|nos|pp|dept|govt|Corp|Inc|Ltd|Co|St|Ave|Blvd|Rd|Mt|Ft|Gen|Sgt|Cpl|Pvt|Rep|Sen|Gov|Pres|Rev|Hon|Capt|Maj|Col|Brig|Adm|Cmdr|Lt|Insp|Fig|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\./gi;
+    const INITIALS = /\b([A-Z])\.\s+(?=[A-Z])/g;
+    const MASK = '\x00';
+    let safe = text.replace(ABBREVS, (m) => m.slice(0, -1) + MASK);
+    safe = safe.replace(INITIALS, (_, letter) => letter + MASK + ' ');
+    const parts = safe.split(/(?<=[.!?…]["'”’)\]]?)\s+(?=["'“‘(\[]?[A-Z])/);
+    return parts.map(s => s.replace(/\x00/g, '.').trim()).filter(Boolean);
+  }
+
+  // ── Rendering ───────────────────────────────────────────────────────
+  function renderText(container, rawText) {
+    _allParagraphs = parseParagraphs(rawText);
+    _pageRanges = buildPages(_allParagraphs);
+    _isPaginated = _pageRanges.length > 1;
+    _currentPage = 0;
+    renderPage(container, 0);
+    updatePageNav();
+  }
+
+  function renderPage(container, pageNum) {
+    if (_resizeObserver) { _resizeObserver.disconnect(); _resizeObserver = null; }
+    clearTimeout(_resizeTimer);
+    container.innerHTML = "";
+    _currentPage = pageNum;
+    const range = _pageRanges[pageNum];
+    if (!range) return;
+    const pageParagraphs = _allParagraphs.slice(range.start, range.end);
+    pageParagraphs.forEach(({ text, isTitle, isMeta }, pi) => {
+      const absIndex = range.start + pi;
+      if (isMeta) {
+        const bar = document.createElement("div");
+        bar.className = "sb-meta-bar";
+        bar.textContent = text;
+        container.appendChild(bar);
+        return;
+      }
+      const segments = S.segmentOn && !isTitle ? splitIntoSentences(text) : [text];
+      segments.forEach((seg, si) => {
+        const p = document.createElement("p");
+        p.className = "sb-p";
+        if (isTitle) p.classList.add("sb-title");
+        if (S.segmentOn && !isTitle) {
+          p.classList.add("sb-segment");
+          if (si === 0) p.classList.add("sb-segment-start");
+        }
+        p.textContent = seg;
+        container.appendChild(p);
+      });
+    });
+    if (S.gradientsOn) requestAnimationFrame(() => applyLineGradients(container));
+    updatePageNav();
+  }
+
+  let _restoringPosition = false;
+  function goToPage(pageNum) {
+    const container = document.getElementById("sb-content");
+    if (!container) return;
+    pageNum = Math.min(pageNum, Math.max(0, _pageRanges.length - 1));
+    renderPage(container, pageNum);
+    const panel = document.getElementById("sb-panel");
+    if (panel) panel.scrollIntoView({ behavior: "instant", block: "start" });
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }
+
+  // ── Line gradients (ported verbatim, text-only path) ───────────────
+  function applyLineGradients(container) {
+    let globalLine = 0;
+    container.querySelectorAll(".sb-p").forEach((p) => {
+      if (!p.dataset.sbText) p.dataset.sbText = p.textContent;
+      const originalText = p.dataset.sbText;
+      if (!originalText.trim()) return;
+      p.innerHTML = originalText.split(/(\s+|(?<=[—–-]))/).map((chunk) => {
+        if (!chunk.match(/\S/)) return chunk;
+        const safe = chunk.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        return `<span class="sb-word">${safe}</span>`;
+      }).join("");
+      const wordSpans = [...p.querySelectorAll(".sb-word")];
+      const lines = []; let curTop = null, curLine = [];
+      wordSpans.forEach((span) => {
+        const top = Math.round(span.getBoundingClientRect().top);
+        if (curTop === null) curTop = top;
+        if (Math.abs(top - curTop) > 4) { lines.push(curLine); curLine = [span]; curTop = top; }
+        else curLine.push(span);
+      });
+      if (curLine.length) lines.push(curLine);
+      p.innerHTML = "";
+      lines.forEach((lineWords) => {
+        const forward = globalLine % 2 === 0;
+        const g = forward
+          ? `linear-gradient(to right, ${S.gradientStart}, ${S.gradientEnd})`
+          : `linear-gradient(to right, ${S.gradientEnd}, ${S.gradientStart})`;
+        const span = document.createElement("span");
+        span.className = "sb-line";
+        span.textContent = lineWords.map((w) => w.textContent).reduce((acc, word, i) => {
+          if (i === 0) return word;
+          const prev = lineWords[i - 1].textContent;
+          return acc + (/[—–-]$/.test(prev) && prev.length > 1 ? "" : " ") + word;
+        }, "");
+        span.style.backgroundImage = g;
+        span.style.webkitBackgroundClip = "text";
+        span.style.webkitTextFillColor = "transparent";
+        span.style.backgroundClip = "text";
+        p.appendChild(span);
+        globalLine++;
+      });
+    });
+    scheduleResizeWatch(container);
+  }
+
+  let _resizeObserver = null, _resizeTimer = null;
+  function scheduleResizeWatch(container) {
+    if (_resizeObserver) return;
+    _resizeObserver = new ResizeObserver(() => {
+      clearTimeout(_resizeTimer);
+      _resizeTimer = setTimeout(() => {
+        container.querySelectorAll(".sb-p").forEach((p) => { if (p.dataset.sbText) p.textContent = p.dataset.sbText; });
+        applyLineGradients(container);
+      }, 120);
+    });
+    _resizeObserver.observe(container);
+  }
+
+  function removeGradients(container) {
+    container.querySelectorAll(".sb-p").forEach((p) => {
+      if (p.dataset.sbText) { p.textContent = p.dataset.sbText; delete p.dataset.sbText; }
+      p.style.color = S.fontColor;
+    });
+    if (_resizeObserver) { _resizeObserver.disconnect(); _resizeObserver = null; }
+    clearTimeout(_resizeTimer);
+  }
+
+  // ── Color helpers (ported verbatim) ────────────────────────────────
+  function rgbToHex(color) {
+    if (!color) return null;
+    if (/^#[0-9a-fA-F]{6}$/.test(color)) return color;
+    const m = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+    if (!m) return null;
+    return "#" + [m[1], m[2], m[3]].map((n) => parseInt(n).toString(16).padStart(2, "0")).join("");
+  }
+  function hexToRgb(hex) {
+    const m = /^#([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/.exec(hex);
+    return m ? { r: parseInt(m[1],16), g: parseInt(m[2],16), b: parseInt(m[3],16) } : null;
+  }
+  function relativeLuminance(hex) {
+    const rgb = hexToRgb(hex);
+    if (!rgb) return 1;
+    const chan = [rgb.r, rgb.g, rgb.b].map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+    return 0.2126 * chan[0] + 0.7152 * chan[1] + 0.0722 * chan[2];
+  }
+  function blendHex(hex, target, amount) {
+    const rgb = hexToRgb(hex);
+    if (!rgb) return hex;
+    const r = Math.round(rgb.r + (target.r - rgb.r) * amount);
+    const g = Math.round(rgb.g + (target.g - rgb.g) * amount);
+    const b = Math.round(rgb.b + (target.b - rgb.b) * amount);
+    return "#" + [r, g, b].map((n) => Math.max(0, Math.min(255, n)).toString(16).padStart(2, "0")).join("");
+  }
+
+  // ── Dim overlay ─────────────────────────────────────────────────────
+  function getOrCreateDimOverlay() {
+    let overlay = document.getElementById("sb-dim-overlay");
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.id = "sb-dim-overlay";
+      overlay.style.cssText = "position:fixed;inset:0;pointer-events:none;z-index:10001;background:#000;transition:opacity 0.25s";
+      document.body.appendChild(overlay);
+    }
+    return overlay;
+  }
+  function applyDimness() { getOrCreateDimOverlay().style.opacity = S.dimness; }
+
+  // ── Apply styles ────────────────────────────────────────────────────
+  function applyStyles() {
+    const panel = document.getElementById("sb-panel");
+    const content = document.getElementById("sb-content");
+    if (!panel || !content) return;
+    document.getElementById("sb-page-bg").style.background = S.pageBg;
+    panel.style.background = S.textBg;
+    panel.style.color = S.fontColor;
+    panel.style.maxWidth = S.charsPerLine + "ch";
+    content.style.fontFamily = `'${S.fontFamily}', Georgia, serif`;
+    content.style.fontSize = S.fontSize + "rem";
+    content.style.lineHeight = S.lineHeight;
+    content.style.color = S.fontColor;
+    applyDimness();
+    if (S.gradientsOn) {
+      if (_resizeObserver) { _resizeObserver.disconnect(); _resizeObserver = null; }
+      content.querySelectorAll(".sb-p").forEach((p) => { if (p.dataset.sbText) p.textContent = p.dataset.sbText; });
+      requestAnimationFrame(() => applyLineGradients(content));
+    } else {
+      removeGradients(content);
+    }
+    applyToolbarColors();
+    refreshGradientPanel();
+    refreshColorsPanel();
+  }
+
+  function applyToolbarColors() {
+    const tb = document.getElementById("sb-toolbar");
+    if (!tb) return;
+    let style = document.getElementById("sb-toolbar-custom-style");
+    if (!style) { style = document.createElement("style"); style.id = "sb-toolbar-custom-style"; document.head.appendChild(style); }
+    const bg = S.toolbarBg || "", font = S.toolbarFontColor || "";
+    if (!bg && !font) { tb.style.background = ""; style.textContent = ""; return; }
+    tb.style.background = bg || "";
+    const baseBg = bg || "#ffffff";
+    const isDark = relativeLuminance(baseBg) < 0.5;
+    const blendTarget = isDark ? { r: 255, g: 255, b: 255 } : { r: 0, g: 0, b: 0 };
+    const hoverBg = blendHex(baseBg, blendTarget, 0.08);
+    const activeBg = blendHex(baseBg, blendTarget, 0.14);
+    const dividerColor = blendHex(baseBg, blendTarget, 0.2);
+    const fontColor = font || "#2a2825";
+    style.textContent = `
+      #sb-toolbar { border-bottom-color: ${dividerColor} !important; }
+      #sb-toolbar .sb-tb-btn { color: ${fontColor} !important; border-right-color: ${dividerColor} !important; }
+      #sb-toolbar .sb-tb-btn:hover  { background: ${hoverBg} !important; }
+      #sb-toolbar .sb-tb-btn.active { background: ${activeBg} !important; }
+      #sb-toolbar .sb-caret { color: ${fontColor} !important; opacity: 0.6; }
+    `;
+  }
+
+  // ── Small DOM helpers (ported verbatim) ────────────────────────────
+  const makeLabel = (t) => { const e = document.createElement("div"); e.className = "sb-label"; e.textContent = t; return e; };
+  const makeDivider = () => { const e = document.createElement("div"); e.className = "sb-divider"; return e; };
+  const makeNumDisplay = (v) => { const e = document.createElement("div"); e.className = "sb-num"; e.textContent = v; return e; };
+  const updateNum = (el, v) => { el.textContent = v; };
+  function makeActionBtn(label, isPrimary, onClick) {
+    const btn = document.createElement("button");
+    btn.className = "sb-action-btn" + (isPrimary ? " primary" : "");
+    btn.textContent = label;
+    btn.addEventListener("click", onClick);
+    return btn;
+  }
+  function makeColourPicker(initVal, onChange) {
+    const picker = document.createElement("input");
+    picker.type = "color"; picker.className = "sb-colour-picker";
+    picker.value = rgbToHex(initVal) || "#000000";
+    picker.addEventListener("input", () => onChange(picker.value));
+    return picker;
+  }
+  function makeHexInput(initVal, onChange) {
+    const input = document.createElement("input");
+    input.type = "text"; input.className = "sb-hex-input"; input.value = initVal; input.maxLength = 7;
+    input.addEventListener("change", () => { if (/^#[0-9a-fA-F]{6}$/.test(input.value.trim())) onChange(input.value.trim()); });
+    return input;
+  }
+
+  // ── Toolbar shell ───────────────────────────────────────────────────
+  function buildToolbar() {
+    const tb = document.createElement("div");
+    tb.id = "sb-toolbar";
+    tb.appendChild(makeDropdown("Reading", buildTypographyPanel));
+    tb.appendChild(makeDropdown("Gradients", buildGradientsPanel));
+    tb.appendChild(makeDropdown("Colors", buildColorsPanel));
+    tb.appendChild(makeDropdown("Themes", buildThemesPanel));
+    document.body.appendChild(tb);
+    tb.addEventListener("wheel", (e) => { if (tb.scrollWidth > tb.clientWidth) { e.preventDefault(); tb.scrollLeft += e.deltaY; } }, { passive: false });
+    document.addEventListener("click", (e) => {
+      const inToolbar = tb.contains(e.target);
+      const inPanel = !!e.target.closest(".sb-tb-panel");
+      if (!inToolbar && !inPanel) closeAllDropdowns();
+    }, true);
+  }
+
+  function makeDropdown(label, buildFn) {
+    const wrap = document.createElement("div");
+    wrap.className = "sb-tb-dropdown";
+    const btn = document.createElement("button");
+    btn.className = "sb-tb-btn";
+    btn.innerHTML = `${label} <span class="sb-caret">▾</span>`;
+    const panel = document.createElement("div");
+    panel.className = "sb-tb-panel";
+    buildFn(panel);
+    document.body.appendChild(panel);
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isOpen = panel.classList.contains("open");
+      closeAllDropdowns();
+      if (!isOpen) {
+        const rect = btn.getBoundingClientRect();
+        panel.classList.add("open");
+        btn.classList.add("active");
+        const panelWidth = panel.offsetWidth || 220;
+        const maxLeft = window.innerWidth - panelWidth - 8;
+        panel.style.left = Math.max(8, Math.min(rect.left, maxLeft)) + "px";
+      }
+    });
+    wrap.appendChild(btn);
+    return wrap;
+  }
+
+  function closeAllDropdowns() {
+    document.querySelectorAll(".sb-tb-panel").forEach((p) => p.classList.remove("open"));
+    document.querySelectorAll(".sb-tb-btn").forEach((b) => b.classList.remove("active"));
+  }
+
+  // ── Reading (typography) panel ──────────────────────────────────────
+  function buildTypographyPanel(panel) {
+    panel.appendChild(makeLabel("Font Family"));
+    const fontGrid = document.createElement("div");
+    fontGrid.className = "sb-font-grid";
+    const fontOptions = [];
+    function populateFontGrid() {
+      fontGrid.innerHTML = ""; fontOptions.length = 0;
+      FONTS.forEach((f) => {
+        const item = document.createElement("div");
+        item.className = "sb-font-cell" + (S.fontFamily === f ? " selected" : "");
+        item.textContent = f;
+        item.style.fontFamily = `'${f}', serif`;
+        item.style.fontSize = f === "Press Start 2P" ? "8px" : "";
+        item.addEventListener("click", () => {
+          S.fontFamily = f; saveSettings();
+          fontOptions.forEach((o) => o.classList.remove("selected"));
+          item.classList.add("selected");
+          applyStyles();
+        });
+        fontOptions.push(item);
+        fontGrid.appendChild(item);
+      });
+    }
+    populateFontGrid();
+    document.fonts.ready.then(() => populateFontGrid());
+    panel.appendChild(fontGrid);
+
+    panel.appendChild(makeDivider());
+    panel.appendChild(makeLabel("Font Size"));
+    const sizeRow = document.createElement("div"); sizeRow.className = "sb-row";
+    const sizeNum = makeNumDisplay(S.fontSize);
+    sizeRow.appendChild(makeActionBtn("Larger", true, () => { S.fontSize = Math.min(3.5, +(S.fontSize + 0.1).toFixed(2)); saveSettings(); updateNum(sizeNum, S.fontSize); applyStyles(); }));
+    sizeRow.appendChild(makeActionBtn("Smaller", false, () => { S.fontSize = Math.max(0.8, +(S.fontSize - 0.1).toFixed(2)); saveSettings(); updateNum(sizeNum, S.fontSize); applyStyles(); }));
+    sizeRow.appendChild(sizeNum);
+    panel.appendChild(sizeRow);
+
+    panel.appendChild(makeDivider());
+    panel.appendChild(makeLabel("Line Height"));
+    const lhRow = document.createElement("div"); lhRow.className = "sb-row";
+    const lhNum = makeNumDisplay(S.lineHeight);
+    lhRow.appendChild(makeActionBtn("Increase", true, () => { S.lineHeight = Math.min(3, +(S.lineHeight + 0.05).toFixed(2)); saveSettings(); updateNum(lhNum, S.lineHeight); document.getElementById("sb-content").style.lineHeight = S.lineHeight; }));
+    lhRow.appendChild(makeActionBtn("Decrease", false, () => { S.lineHeight = Math.max(1, +(S.lineHeight - 0.05).toFixed(2)); saveSettings(); updateNum(lhNum, S.lineHeight); document.getElementById("sb-content").style.lineHeight = S.lineHeight; }));
+    lhRow.appendChild(lhNum);
+    panel.appendChild(lhRow);
+
+    panel.appendChild(makeDivider());
+    panel.appendChild(makeLabel("Page Width"));
+    const wRow = document.createElement("div"); wRow.className = "sb-row";
+    const wNum = makeNumDisplay(S.charsPerLine);
+    wRow.appendChild(makeActionBtn("Wider", true, () => { S.charsPerLine = Math.min(140, S.charsPerLine + 5); saveSettings(); updateNum(wNum, S.charsPerLine); document.getElementById("sb-panel").style.maxWidth = S.charsPerLine + "ch"; }));
+    wRow.appendChild(makeActionBtn("Narrower", false, () => { S.charsPerLine = Math.max(30, S.charsPerLine - 5); saveSettings(); updateNum(wNum, S.charsPerLine); document.getElementById("sb-panel").style.maxWidth = S.charsPerLine + "ch"; }));
+    wRow.appendChild(wNum);
+    panel.appendChild(wRow);
+
+    panel.appendChild(makeDivider());
+    panel.appendChild(makeLabel("Sentence Segmentation"));
+    const segRow = document.createElement("div"); segRow.className = "sb-row";
+    const segLabel = document.createElement("label"); segLabel.className = "sb-toggle";
+    const segInput = document.createElement("input"); segInput.type = "checkbox"; segInput.checked = S.segmentOn;
+    const segSlider = document.createElement("span"); segSlider.className = "sb-toggle-slider";
+    const segState = document.createElement("span"); segState.className = "sb-toggle-state"; segState.textContent = S.segmentOn ? "On" : "Off";
+    segInput.addEventListener("change", () => {
+      S.segmentOn = segInput.checked; segState.textContent = S.segmentOn ? "On" : "Off"; saveSettings();
+      renderPage(document.getElementById("sb-content"), _currentPage);
+      applyStyles();
+    });
+    segLabel.appendChild(segInput); segLabel.appendChild(segSlider);
+    segRow.appendChild(segLabel); segRow.appendChild(segState);
+    const segHint = document.createElement("div");
+    segHint.style.cssText = "padding:4px 16px 8px;font-size:11px;color:#9a948c;line-height:1.5;";
+    segHint.textContent = "Each sentence gets its own line for easier scanning.";
+    panel.appendChild(segRow); panel.appendChild(segHint);
+  }
+
+  // ── Gradients panel ─────────────────────────────────────────────────
+  let _gradientPanelRefs = null;
+  function buildGradientsPanel(panel) {
+    panel.appendChild(makeLabel("Line Gradients"));
+    const toggleRow = document.createElement("div"); toggleRow.className = "sb-row";
+    const toggleLabel = document.createElement("label"); toggleLabel.className = "sb-toggle";
+    const toggleInput = document.createElement("input"); toggleInput.type = "checkbox"; toggleInput.checked = S.gradientsOn;
+    const toggleSlider = document.createElement("span"); toggleSlider.className = "sb-toggle-slider";
+    const toggleState = document.createElement("span"); toggleState.className = "sb-toggle-state"; toggleState.textContent = S.gradientsOn ? "On" : "Off";
+    toggleInput.addEventListener("change", () => {
+      S.gradientsOn = toggleInput.checked; toggleState.textContent = S.gradientsOn ? "On" : "Off"; saveSettings();
+      applyStyles(); quickFontRow.style.display = S.gradientsOn ? "none" : "flex";
+    });
+    toggleLabel.appendChild(toggleInput); toggleLabel.appendChild(toggleSlider);
+    toggleRow.appendChild(toggleLabel); toggleRow.appendChild(toggleState);
+    panel.appendChild(toggleRow);
+
+    const quickFontRow = document.createElement("div");
+    quickFontRow.style.cssText = `display:${S.gradientsOn ? "none" : "flex"};align-items:center;gap:10px;padding:8px 16px 6px;border-bottom:1px solid #ede9e4;margin-bottom:2px;`;
+    const quickFontLbl = document.createElement("span");
+    quickFontLbl.style.cssText = "font-size:12px;color:#6a6460;flex:1;";
+    quickFontLbl.textContent = "Font color";
+    const quickHex = makeHexInput(S.fontColor, (v) => { S.fontColor = v; saveSettings(); quickPicker.value = rgbToHex(v) || v; applyStyles(); });
+    const quickPicker = makeColourPicker(S.fontColor, (v) => { S.fontColor = v; saveSettings(); quickHex.value = v; applyStyles(); });
+    quickFontRow.appendChild(quickFontLbl); quickFontRow.appendChild(quickHex); quickFontRow.appendChild(quickPicker);
+    panel.appendChild(quickFontRow);
+
+    panel.appendChild(makeDivider());
+    panel.appendChild(makeLabel("Presets"));
+    Object.entries(GRADIENT_PRESETS).forEach(([name, [start, end]]) => {
+      const item = document.createElement("div"); item.className = "sb-option";
+      const strip = document.createElement("span");
+      strip.style.cssText = `display:inline-block;width:36px;height:8px;border-radius:3px;margin-left:8px;vertical-align:middle;background:linear-gradient(to right,${start},${end})`;
+      item.textContent = name; item.appendChild(strip);
+      item.addEventListener("click", () => {
+        S.gradientStart = start; S.gradientEnd = end;
+        gPicker1.value = rgbToHex(start) || start; gPicker2.value = rgbToHex(end) || end;
+        saveSettings(); applyStyles();
+      });
+      panel.appendChild(item);
+    });
+
+    panel.appendChild(makeDivider());
+    panel.appendChild(makeLabel("Font Gradient Colors"));
+    const pickRow = document.createElement("div"); pickRow.className = "sb-row"; pickRow.style.gap = "12px";
+    const wrap1 = document.createElement("div"); wrap1.className = "sb-colour-pick-wrap";
+    const lbl1 = document.createElement("span"); lbl1.className = "sb-pick-label"; lbl1.textContent = "Colour 1";
+    const gPicker1 = document.createElement("input"); gPicker1.type = "color"; gPicker1.className = "sb-colour-picker";
+    gPicker1.value = rgbToHex(S.gradientStart) || "#ffffff";
+    gPicker1.addEventListener("input", () => { S.gradientStart = gPicker1.value; saveSettings(); applyStyles(); });
+    wrap1.appendChild(lbl1); wrap1.appendChild(gPicker1);
+    const wrap2 = document.createElement("div"); wrap2.className = "sb-colour-pick-wrap";
+    const lbl2 = document.createElement("span"); lbl2.className = "sb-pick-label"; lbl2.textContent = "Colour 2";
+    const gPicker2 = document.createElement("input"); gPicker2.type = "color"; gPicker2.className = "sb-colour-picker";
+    gPicker2.value = rgbToHex(S.gradientEnd) || "#c8d8e8";
+    gPicker2.addEventListener("input", () => { S.gradientEnd = gPicker2.value; saveSettings(); applyStyles(); });
+    wrap2.appendChild(lbl2); wrap2.appendChild(gPicker2);
+    pickRow.appendChild(wrap1); pickRow.appendChild(wrap2);
+    panel.appendChild(pickRow);
+
+    _gradientPanelRefs = { toggleInput, toggleState, quickFontRow, quickHex, quickPicker, gPicker1, gPicker2 };
+  }
+  function refreshGradientPanel() {
+    const r = _gradientPanelRefs; if (!r) return;
+    r.toggleInput.checked = S.gradientsOn;
+    r.toggleState.textContent = S.gradientsOn ? "On" : "Off";
+    r.quickFontRow.style.display = S.gradientsOn ? "none" : "flex";
+    r.quickHex.value = S.fontColor;
+    r.quickPicker.value = rgbToHex(S.fontColor) || S.fontColor;
+    r.gPicker1.value = rgbToHex(S.gradientStart) || S.gradientStart;
+    r.gPicker2.value = rgbToHex(S.gradientEnd) || S.gradientEnd;
+  }
+
+  // ── Colors panel ─────────────────────────────────────────────────────
+  let _colorsPanelRefs = null;
+  function buildColorsPanel(panel) {
+    panel.appendChild(makeLabel("Text Background"));
+    const bgOptions = [];
+    Object.entries(BG_PRESETS).forEach(([name, colors]) => {
+      const item = document.createElement("div");
+      item.className = "sb-option" + (S.bgPreset === name ? " selected" : "");
+      item.textContent = name;
+      item.addEventListener("click", () => {
+        S.bgPreset = name; S.textBg = colors.text; S.fontColor = colors.font; saveSettings();
+        bgOptions.forEach((o) => o.el.classList.remove("selected")); item.classList.add("selected");
+        hexInput1.value = S.textBg; picker1.value = rgbToHex(S.textBg) || S.textBg;
+        hexInput3.value = S.fontColor; picker3.value = rgbToHex(S.fontColor) || S.fontColor;
+        applyStyles();
+      });
+      bgOptions.push({ name, el: item }); panel.appendChild(item);
+    });
+    const row1 = document.createElement("div"); row1.className = "sb-row";
+    const hexInput1 = makeHexInput(S.textBg, (v) => { S.textBg = v; S.bgPreset = ""; saveSettings(); picker1.value = rgbToHex(v) || v; applyStyles(); });
+    const picker1 = makeColourPicker(S.textBg, (v) => { S.textBg = v; S.bgPreset = ""; saveSettings(); hexInput1.value = v; applyStyles(); });
+    row1.appendChild(hexInput1); row1.appendChild(picker1); panel.appendChild(row1);
+
+    panel.appendChild(makeDivider());
+    panel.appendChild(makeLabel("Page Background"));
+    Object.entries(PAGE_BG_PRESETS).forEach(([name, color]) => {
+      const item = document.createElement("div"); item.className = "sb-option"; item.textContent = name;
+      item.addEventListener("click", () => { S.pageBg = color; saveSettings(); hexInput2.value = color; picker2.value = rgbToHex(color) || color; applyStyles(); });
+      panel.appendChild(item);
+    });
+    const row2 = document.createElement("div"); row2.className = "sb-row";
+    const hexInput2 = makeHexInput(S.pageBg, (v) => { S.pageBg = v; saveSettings(); picker2.value = rgbToHex(v) || v; applyStyles(); });
+    const picker2 = makeColourPicker(S.pageBg, (v) => { S.pageBg = v; saveSettings(); hexInput2.value = v; applyStyles(); });
+    row2.appendChild(hexInput2); row2.appendChild(picker2); panel.appendChild(row2);
+
+    panel.appendChild(makeDivider());
+    const fontColorLabel = makeLabel(S.gradientsOn ? "Font Gradient Colors" : "Font Colour");
+    panel.appendChild(fontColorLabel);
+    const row3 = document.createElement("div"); row3.className = "sb-row"; row3.style.display = S.gradientsOn ? "none" : "flex";
+    const hexInput3 = makeHexInput(S.fontColor, (v) => { S.fontColor = v; saveSettings(); picker3.value = rgbToHex(v) || v; applyStyles(); });
+    const picker3 = makeColourPicker(S.fontColor, (v) => { S.fontColor = v; saveSettings(); hexInput3.value = v; applyStyles(); });
+    row3.appendChild(hexInput3); row3.appendChild(picker3); panel.appendChild(row3);
+
+    const row4 = document.createElement("div"); row4.className = "sb-row"; row4.style.gap = "12px"; row4.style.display = S.gradientsOn ? "flex" : "none";
+    const gcWrap1 = document.createElement("div"); gcWrap1.className = "sb-colour-pick-wrap";
+    const gcLbl1 = document.createElement("span"); gcLbl1.className = "sb-pick-label"; gcLbl1.textContent = "Colour 1";
+    const gcPicker1 = document.createElement("input"); gcPicker1.type = "color"; gcPicker1.className = "sb-colour-picker";
+    gcPicker1.value = rgbToHex(S.gradientStart) || "#ffffff";
+    gcPicker1.addEventListener("input", () => { S.gradientStart = gcPicker1.value; saveSettings(); applyStyles(); });
+    gcWrap1.appendChild(gcLbl1); gcWrap1.appendChild(gcPicker1);
+    const gcWrap2 = document.createElement("div"); gcWrap2.className = "sb-colour-pick-wrap";
+    const gcLbl2 = document.createElement("span"); gcLbl2.className = "sb-pick-label"; gcLbl2.textContent = "Colour 2";
+    const gcPicker2 = document.createElement("input"); gcPicker2.type = "color"; gcPicker2.className = "sb-colour-picker";
+    gcPicker2.value = rgbToHex(S.gradientEnd) || "#c8d8e8";
+    gcPicker2.addEventListener("input", () => { S.gradientEnd = gcPicker2.value; saveSettings(); applyStyles(); });
+    gcWrap2.appendChild(gcLbl2); gcWrap2.appendChild(gcPicker2);
+    row4.appendChild(gcWrap1); row4.appendChild(gcWrap2); panel.appendChild(row4);
+
+    panel.appendChild(makeDivider());
+    panel.appendChild(makeLabel("Page Dimness"));
+    const dimRow = document.createElement("div"); dimRow.className = "sb-row";
+    const dimNum = makeNumDisplay(Math.round(S.dimness * 100) + "%");
+    const moreDimBtn = makeActionBtn("More Dim", true, () => { S.dimness = Math.min(0.9, +(S.dimness + 0.05).toFixed(2)); saveSettings(); updateNum(dimNum, Math.round(S.dimness * 100) + "%"); updateDimBtnStates(); applyDimness(); });
+    const lessDimBtn = makeActionBtn("Less Dim", false, () => { S.dimness = Math.max(0, +(S.dimness - 0.05).toFixed(2)); saveSettings(); updateNum(dimNum, Math.round(S.dimness * 100) + "%"); updateDimBtnStates(); applyDimness(); });
+    function updateDimBtnStates() {
+      lessDimBtn.disabled = S.dimness <= 0; lessDimBtn.style.opacity = S.dimness <= 0 ? "0.35" : "";
+      moreDimBtn.disabled = S.dimness >= 0.9; moreDimBtn.style.opacity = S.dimness >= 0.9 ? "0.35" : "";
+    }
+    updateDimBtnStates();
+    dimRow.appendChild(moreDimBtn); dimRow.appendChild(lessDimBtn); dimRow.appendChild(dimNum);
+    panel.appendChild(dimRow);
+
+    panel.appendChild(makeDivider());
+    panel.appendChild(makeLabel("Menu Bar"));
+    const tbBgRow = document.createElement("div"); tbBgRow.className = "sb-row";
+    const tbBgLbl = document.createElement("span"); tbBgLbl.style.cssText = "font-size:12px;color:#6a6460;flex:1;"; tbBgLbl.textContent = "Background";
+    const tbBgHex = makeHexInput(S.toolbarBg || "#ffffff", (v) => { S.toolbarBg = v; saveSettings(); tbBgPicker.value = v; applyToolbarColors(); });
+    const tbBgPicker = makeColourPicker(S.toolbarBg || "#ffffff", (v) => { S.toolbarBg = v; saveSettings(); tbBgHex.value = v; applyToolbarColors(); });
+    tbBgRow.appendChild(tbBgLbl); tbBgRow.appendChild(tbBgHex); tbBgRow.appendChild(tbBgPicker); panel.appendChild(tbBgRow);
+
+    const tbFontRow = document.createElement("div"); tbFontRow.className = "sb-row";
+    const tbFontLbl = document.createElement("span"); tbFontLbl.style.cssText = "font-size:12px;color:#6a6460;flex:1;"; tbFontLbl.textContent = "Menu font";
+    const tbFontHex = makeHexInput(S.toolbarFontColor || "#2a2825", (v) => { S.toolbarFontColor = v; saveSettings(); tbFontPicker.value = v; applyToolbarColors(); });
+    const tbFontPicker = makeColourPicker(S.toolbarFontColor || "#2a2825", (v) => { S.toolbarFontColor = v; saveSettings(); tbFontHex.value = v; applyToolbarColors(); });
+    tbFontRow.appendChild(tbFontLbl); tbFontRow.appendChild(tbFontHex); tbFontRow.appendChild(tbFontPicker); panel.appendChild(tbFontRow);
+
+    const tbResetRow = document.createElement("div"); tbResetRow.style.cssText = "padding:2px 16px 10px;";
+    const tbResetLink = document.createElement("a");
+    tbResetLink.textContent = "Reset to default";
+    tbResetLink.style.cssText = "font-size:11px;color:#3b6ea5;cursor:pointer;text-decoration:none;";
+    tbResetLink.addEventListener("click", () => {
+      S.toolbarBg = ""; S.toolbarFontColor = ""; saveSettings();
+      tbBgHex.value = "#ffffff"; tbBgPicker.value = "#ffffff"; tbFontHex.value = "#2a2825"; tbFontPicker.value = "#2a2825";
+      applyToolbarColors();
+    });
+    tbResetRow.appendChild(tbResetLink); panel.appendChild(tbResetRow);
+
+    _colorsPanelRefs = { bgOptions, hexInput1, picker1, hexInput2, picker2, fontColorLabel, row3, hexInput3, picker3, row4, gcPicker1, gcPicker2, dimNum, tbBgHex, tbBgPicker, tbFontHex, tbFontPicker };
+  }
+  function refreshColorsPanel() {
+    const r = _colorsPanelRefs; if (!r) return;
+    r.bgOptions.forEach(({ name, el }) => el.classList.toggle("selected", S.bgPreset === name));
+    r.hexInput1.value = S.textBg; r.picker1.value = rgbToHex(S.textBg) || S.textBg;
+    r.hexInput2.value = S.pageBg; r.picker2.value = rgbToHex(S.pageBg) || S.pageBg;
+    r.fontColorLabel.textContent = S.gradientsOn ? "Font Gradient Colors" : "Font Colour";
+    r.row3.style.display = S.gradientsOn ? "none" : "flex";
+    r.row4.style.display = S.gradientsOn ? "flex" : "none";
+    r.hexInput3.value = S.fontColor; r.picker3.value = rgbToHex(S.fontColor) || S.fontColor;
+    r.gcPicker1.value = rgbToHex(S.gradientStart) || S.gradientStart;
+    r.gcPicker2.value = rgbToHex(S.gradientEnd) || S.gradientEnd;
+    r.dimNum.textContent = Math.round(S.dimness * 100) + "%";
+    r.tbBgHex.value = S.toolbarBg || "#ffffff"; r.tbBgPicker.value = S.toolbarBg || "#ffffff";
+    r.tbFontHex.value = S.toolbarFontColor || "#2a2825"; r.tbFontPicker.value = S.toolbarFontColor || "#2a2825";
+  }
+
+  // ── Themes panel ─────────────────────────────────────────────────────
+  let _themeListDiv = null;
+  function buildThemesPanel(panel) {
+    panel.appendChild(makeLabel("Theme"));
+    _themeListDiv = document.createElement("div");
+    panel.appendChild(_themeListDiv);
+
+    panel.appendChild(makeDivider());
+    panel.appendChild(makeLabel("Create Theme"));
+    const nameWrap = document.createElement("div"); nameWrap.style.cssText = "padding:4px 16px 2px;";
+    const nameInput = document.createElement("input");
+    nameInput.type = "text"; nameInput.className = "sb-theme-name-input";
+    nameInput.placeholder = "Theme name…";
+    nameWrap.appendChild(nameInput); panel.appendChild(nameWrap);
+    const hint = document.createElement("div");
+    hint.style.cssText = "padding:5px 16px 8px;font-size:11px;color:#9a948c;line-height:1.5;";
+    hint.textContent = "Saves a snapshot of your current colours & gradients and applies it immediately.";
+    panel.appendChild(hint);
+    const createBtn = document.createElement("button");
+    createBtn.className = "sb-action-btn primary";
+    createBtn.style.cssText = "display:block;width:calc(100% - 32px);margin:0 16px 10px;padding:8px 14px;text-align:center;";
+    createBtn.textContent = "Create Theme";
+    createBtn.addEventListener("click", () => {
+      const name = nameInput.value.trim() || `Custom Theme ${Object.keys(_customThemes).length + 1}`;
+      const key = "custom_" + Date.now();
+      _customThemes[key] = {
+        label: name, pageBg: S.pageBg, textBg: S.textBg, fontColor: S.fontColor, bgPreset: S.bgPreset,
+        gradientStart: S.gradientStart, gradientEnd: S.gradientEnd, gradientsOn: S.gradientsOn,
+      };
+      saveCustomThemes();
+      S.theme = key; saveSettings();
+      nameInput.value = ""; renderThemeList();
+    });
+    panel.appendChild(createBtn);
+    panel.appendChild(makeDivider());
+    const note = document.createElement("div");
+    note.style.cssText = "padding:6px 16px 10px;font-size:11px;color:#9a948c;line-height:1.5;";
+    note.textContent = "Colors can still be customised via the Colors menu.";
+    panel.appendChild(note);
+    renderThemeList();
+  }
+
+  function renderThemeList() {
+    if (!_themeListDiv) return;
+    _themeListDiv.innerHTML = "";
+    const builtIn = Object.entries(THEMES);
+    const custom = Object.entries(_customThemes);
+    [...builtIn, ...custom].forEach(([key, theme]) => {
+      const isCustom = key.startsWith("custom_");
+      const item = document.createElement("div");
+      item.className = "sb-theme-option" + (S.theme === key ? " selected" : "");
+      const swatch = document.createElement("span"); swatch.className = "sb-theme-swatch";
+      swatch.style.background = theme.pageBg; swatch.style.borderColor = theme.textBg;
+      const inner = document.createElement("span"); inner.className = "sb-theme-swatch-inner"; inner.style.background = theme.textBg;
+      swatch.appendChild(inner); item.appendChild(swatch);
+      const lbl = document.createElement("span"); lbl.textContent = theme.label; lbl.style.flex = "1";
+      if (isCustom) {
+        lbl.style.cursor = "text"; lbl.title = "Click to rename";
+        lbl.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const inp = document.createElement("input");
+          inp.type = "text"; inp.className = "sb-hex-input"; inp.value = theme.label;
+          inp.style.cssText = "flex:1;padding:2px 6px;font-size:13px;font-family:inherit;";
+          lbl.replaceWith(inp); inp.focus(); inp.select();
+          const commit = () => { _customThemes[key].label = inp.value.trim() || theme.label; saveCustomThemes(); renderThemeList(); };
+          inp.addEventListener("blur", commit);
+          inp.addEventListener("keydown", (e2) => { if (e2.key === "Enter") { e2.preventDefault(); commit(); } if (e2.key === "Escape") renderThemeList(); });
+        });
+      }
+      item.appendChild(lbl);
+      if (isCustom) {
+        const delBtn = document.createElement("button");
+        delBtn.textContent = "✕"; delBtn.title = "Delete theme";
+        delBtn.style.cssText = "background:none;border:none;color:#bbb;cursor:pointer;font-size:13px;padding:0 4px;flex-shrink:0;opacity:0;transition:opacity 0.15s,color 0.15s;";
+        item.appendChild(delBtn);
+        item.addEventListener("mouseenter", () => { delBtn.style.opacity = "1"; });
+        item.addEventListener("mouseleave", () => { delBtn.style.opacity = "0"; });
+        delBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          delete _customThemes[key]; saveCustomThemes();
+          if (S.theme === key) { S.theme = "default"; Object.assign(S, THEMES.default); saveSettings(); applyTheme(); applyStyles(); }
+          renderThemeList();
+        });
+      }
+      item.addEventListener("click", () => {
+        const t = isCustom ? _customThemes[key] : THEMES[key];
+        if (!t) return;
+        const prevTheme = S.theme ? (THEMES[S.theme] || _customThemes[S.theme]) : null;
+        if (prevTheme && prevTheme.fontSize && !t.fontSize) { S.fontSize = S._savedFontSize || DEFAULT_SETTINGS.fontSize; delete S._savedFontSize; }
+        else if (!(prevTheme && prevTheme.fontSize) && t.fontSize) { S._savedFontSize = S.fontSize; }
+        if (prevTheme && prevTheme.charsPerLine && !t.charsPerLine) { S.charsPerLine = S._savedCharsPerLine || DEFAULT_SETTINGS.charsPerLine; delete S._savedCharsPerLine; }
+        else if (!(prevTheme && prevTheme.charsPerLine) && t.charsPerLine) { S._savedCharsPerLine = S.charsPerLine; }
+        S.theme = key;
+        Object.assign(S, { pageBg: t.pageBg, textBg: t.textBg, fontColor: t.fontColor, bgPreset: t.bgPreset || "", gradientStart: t.gradientStart, gradientEnd: t.gradientEnd, gradientsOn: t.gradientsOn });
+        S.fontFamily = t.fontFamily || DEFAULT_SETTINGS.fontFamily;
+        if (t.fontSize) S.fontSize = t.fontSize;
+        if (t.charsPerLine) S.charsPerLine = t.charsPerLine;
+        saveSettings(); renderThemeList(); applyTheme(); applyStyles(); closeAllDropdowns();
+      });
+      _themeListDiv.appendChild(item);
+    });
+  }
+
+  // Pass-2 hook: the real reader.js builds each theme's bespoke environment
+  // here (Starry Night's canvas, the CRT control panel, GeoCities' banners/
+  // guestbook/arcade buttons, Scribble Pad's drawing layer). Left as a
+  // marked stub so a later pass can fill this in without restructuring
+  // renderThemeList()'s click handler above.
+  function applyTheme() { /* environment decorations land here in pass 2 */ }
+
+  // ── Pagination nav (footer + side zones) ────────────────────────────
+  function buildPageNav() {
+    function makeZone(side) {
+      const zone = document.createElement("div");
+      zone.id = side === "left" ? "sb-page-prev" : "sb-page-next";
+      const arrow = document.createElement("div");
+      arrow.className = "sb-arrow";
+      arrow.textContent = side === "left" ? "‹" : "›";
+      zone.appendChild(arrow);
+      zone.addEventListener("mouseenter", () => { zone.style.background = "rgba(0,0,0,0.035)"; arrow.style.opacity = "0.6"; });
+      zone.addEventListener("mouseleave", () => { zone.style.background = "transparent"; arrow.style.opacity = "0"; });
+      zone.addEventListener("click", () => {
+        if (side === "left" && _currentPage > 0) goToPage(_currentPage - 1);
+        if (side === "right" && _currentPage < _pageRanges.length - 1) goToPage(_currentPage + 1);
+      });
+      return zone;
+    }
+    document.body.appendChild(makeZone("left"));
+    document.body.appendChild(makeZone("right"));
+
+    const pageLabel = document.createElement("div");
+    pageLabel.id = "sb-page-label";
+    document.body.appendChild(pageLabel);
+
+    const panel = document.getElementById("sb-panel");
+    if (panel) {
+      const footer = document.createElement("div"); footer.id = "sb-page-footer";
+      const row = document.createElement("div"); row.className = "sb-pf-row";
+      const pfPrev = document.createElement("button"); pfPrev.className = "sb-pf-btn";
+      pfPrev.innerHTML = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><polyline points="9,2 4,7 9,12"/></svg>Previous`;
+      pfPrev.addEventListener("click", () => { if (_currentPage > 0) goToPage(_currentPage - 1); });
+      const pfCenter = document.createElement("div"); pfCenter.id = "sb-pf-center"; pfCenter.className = "sb-pf-center";
+      const pfNext = document.createElement("button"); pfNext.className = "sb-pf-btn";
+      pfNext.innerHTML = `Next<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><polyline points="5,2 10,7 5,12"/></svg>`;
+      pfNext.addEventListener("click", () => { if (_currentPage < _pageRanges.length - 1) goToPage(_currentPage + 1); });
+      row.appendChild(pfPrev); row.appendChild(pfCenter); row.appendChild(pfNext);
+      footer.appendChild(row); panel.appendChild(footer);
+      window._sbPfPrev = pfPrev; window._sbPfNext = pfNext; window._sbPfCenter = pfCenter; window._sbFooter = footer;
+    }
+  }
+
+  function updatePageNav() {
+    const label = document.getElementById("sb-page-label");
+    const prevZone = document.getElementById("sb-page-prev");
+    const nextZone = document.getElementById("sb-page-next");
+    if (!label || !prevZone || !nextZone) return;
+    const total = _pageRanges.length;
+    const display = _isPaginated ? "flex" : "none";
+    label.style.display = _isPaginated ? "block" : "none";
+    prevZone.style.display = display; nextZone.style.display = display;
+    label.textContent = `${_currentPage + 1} / ${total}`;
+    prevZone.style.cursor = _currentPage === 0 ? "default" : "pointer";
+    prevZone.style.pointerEvents = _currentPage === 0 ? "none" : "auto";
+    nextZone.style.cursor = _currentPage >= total - 1 ? "default" : "pointer";
+    nextZone.style.pointerEvents = _currentPage >= total - 1 ? "none" : "auto";
+
+    const footer = window._sbFooter, pfPrev = window._sbPfPrev, pfNext = window._sbPfNext, pfCenter = window._sbPfCenter;
+    if (!footer || !pfPrev || !pfNext || !pfCenter) return;
+    footer.style.display = _isPaginated ? "block" : "none";
+    pfPrev.disabled = _currentPage === 0;
+    pfNext.disabled = _currentPage >= total - 1;
+    pfCenter.innerHTML = "";
+    if (total <= 12) {
+      for (let i = 0; i < total; i++) {
+        const dot = document.createElement("span");
+        dot.className = "sb-pf-dot" + (i === _currentPage ? " active" : "");
+        const target = i;
+        dot.addEventListener("click", () => goToPage(target));
+        pfCenter.appendChild(dot);
+      }
+    } else {
+      const counter = document.createElement("span"); counter.className = "sb-pf-counter";
+      counter.textContent = `${_currentPage + 1} of ${total}`;
+      pfCenter.appendChild(counter);
+    }
+  }
+
+  // ── Boot / wiring ───────────────────────────────────────────────────
+  document.addEventListener("DOMContentLoaded", () => {
+    const introEl = document.getElementById("sb-intro");
+    const readerEl = document.getElementById("sb-reader");
+    const textInput = document.getElementById("sb-text-input");
+    const formatBtn = document.getElementById("sb-format-btn");
+    const sampleLink = document.getElementById("sb-sample-link");
+    const backBtn = document.getElementById("sb-back-btn");
+    const toolbarToggleBtn = document.getElementById("sb-toolbar-toggle");
+
+    let toolbarBuilt = false;
+
+    sampleLink.addEventListener("click", () => { textInput.value = SAMPLE_TEXT; textInput.focus(); });
+
+    formatBtn.addEventListener("click", () => {
+      const text = textInput.value.trim();
+      if (!text) { textInput.focus(); return; }
+
+      if (!toolbarBuilt) {
+        buildToolbar();
+        buildPageNav();
+        toolbarBuilt = true;
+      }
+
+      introEl.style.display = "none";
+      readerEl.style.display = "block";
+
+      renderText(document.getElementById("sb-content"), text);
+      applyStyles();
+    });
+
+    backBtn.addEventListener("click", () => {
+      readerEl.style.display = "none";
+      introEl.style.display = "flex";
+    });
+
+    toolbarToggleBtn.addEventListener("click", () => {
+      const body = document.getElementById("sb-reader-body");
+      const hidden = body.classList.toggle("sb-toolbar-hidden");
+      const textSpan = document.getElementById("sb-toolbar-toggle-text");
+      textSpan.textContent = hidden ? "Show Bar" : "Hide Bar";
+      toolbarToggleBtn.querySelector("svg").style.transform = hidden ? "rotate(180deg)" : "";
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (readerEl.style.display !== "block") return;
+      const activeTag = document.activeElement && document.activeElement.tagName;
+      const isTyping = activeTag === "INPUT" || activeTag === "TEXTAREA";
+      if (!isTyping && e.key === "ArrowRight" && _isPaginated && _currentPage < _pageRanges.length - 1) goToPage(_currentPage + 1);
+      if (!isTyping && e.key === "ArrowLeft" && _isPaginated && _currentPage > 0) goToPage(_currentPage - 1);
+    });
+  });
+})();
+</script>
+</body>
+</html>
