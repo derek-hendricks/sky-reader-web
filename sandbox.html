@@ -297,6 +297,54 @@ body {
 
 /* ── Rich content (paragraphs from pasted text only in this pass) ── */
 #sb-content p { margin: 0 0 1.1em; line-height: inherit; font-size: inherit; }
+
+/* ════════════════════════════════════════════
+   PASS 2: NOTES, EDIT MODE, EXPORT
+════════════════════════════════════════════ */
+#sb-notes-backdrop { position:fixed; inset:0; z-index:10010; background:rgba(0,0,0,0.2); opacity:0; pointer-events:none; transition:opacity 0.25s; }
+#sb-notes-drawer {
+  position:fixed; top:0; right:0; bottom:0; width:380px; max-width:90vw; z-index:90000011;
+  display:flex; flex-direction:column; background:#faf9f8; border-left:1px solid #e0ddd8;
+  box-shadow:-6px 0 28px rgba(0,0,0,0.13); transform:translateX(100%);
+  transition:transform 0.28s cubic-bezier(0.4,0,0.2,1);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; overflow:hidden;
+}
+#sb-notes-header { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; background:#fff; border-bottom:1px solid #e0ddd8; flex-shrink:0; }
+#sb-notes-header span { font-size:15px; font-weight:600; color:#1a1714; letter-spacing:-0.2px; }
+#sb-notes-close { background:none; border:none; cursor:pointer; color:#c0bbb5; font-size:13px; line-height:1; padding:5px 6px; border-radius:5px; transition:background 0.12s,color 0.12s; display:flex; align-items:center; justify-content:center; }
+#sb-notes-close:hover { background:#f0eee9; color:#444; }
+#sb-notes-newbar { padding:12px 18px; background:#fff; border-bottom:1px solid #e0ddd8; flex-shrink:0; }
+#sb-notes-new-btn { width:100%; padding:9px 14px; background:#3b6ea5; color:#fff; border:none; border-radius:6px; font-size:13px; font-family:inherit; font-weight:500; cursor:pointer; transition:background 0.15s; letter-spacing:0.2px; }
+#sb-notes-new-btn:hover { background:#2d5585; }
+#sb-notes-editor { display:none; flex-direction:column; flex:1; overflow:hidden; min-height:0; }
+#sb-notes-edtb { display:flex; align-items:center; justify-content:space-between; padding:9px 18px; background:#fff; border-bottom:1px solid #e0ddd8; flex-shrink:0; }
+#sb-notes-back { background:none; border:none; cursor:pointer; color:#3b6ea5; font-size:13px; font-family:inherit; font-weight:500; padding:3px 0; transition:color 0.12s; }
+#sb-notes-back:hover { color:#2d5585; }
+#sb-notes-edtb-right { display:flex; align-items:center; gap:12px; }
+#sb-notes-saved { font-size:12px; color:#3b6ea5; opacity:0; transition:opacity 0.3s; pointer-events:none; }
+.sb-notes-mini-btn { background:none; border:1px solid #d0ccc8; cursor:pointer; color:#666; font-size:11px; font-family:inherit; padding:3px 8px; border-radius:4px; transition:background 0.12s,color 0.12s,border-color 0.12s; white-space:nowrap; display:flex; align-items:center; gap:4px; }
+.sb-notes-mini-btn:hover { background:#f0f4fa; color:#3b6ea5; border-color:#3b6ea5; }
+#sb-notes-delete { background:none; border:none; cursor:pointer; color:#c0392b; font-size:12px; font-family:inherit; padding:4px 8px; border-radius:4px; opacity:0.65; transition:opacity 0.15s,background 0.15s; }
+#sb-notes-delete:hover { opacity:1; background:#fde8e8; }
+#sb-notes-textarea { flex:1; resize:none; border:none; outline:none; padding:18px 20px; font-size:14px; line-height:1.75; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; color:#1a1714; background:#faf9f8; min-height:0; }
+#sb-notes-list { flex:1; overflow-y:auto; min-height:0; }
+.sb-notes-section-label { padding:14px 18px 6px; font-size:11px; font-weight:600; letter-spacing:0.7px; text-transform:uppercase; color:#9a948c; }
+.sb-note-item { padding:12px 18px; border-bottom:1px solid #ede9e4; cursor:pointer; background:#fff; transition:background 0.1s; }
+.sb-note-item:hover { background:#f5f3f0; }
+.sb-note-title { font-size:13px; font-weight:500; color:#1a1714; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sb-note-meta { font-size:11px; color:#9a948c; display:flex; align-items:center; gap:5px; overflow:hidden; }
+.sb-notes-empty { padding:36px 18px; text-align:center; font-size:13px; color:#9a948c; font-style:italic; line-height:1.6; }
+#sb-notes-resizer { position:absolute; z-index:10012; background:transparent; top:0; left:0; bottom:0; width:7px; cursor:ew-resize; transition:background 0.15s; }
+
+#sb-note-export-drop { position:fixed; z-index:999999999999; background:#fff; border:1px solid #e0ddd8; border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,0.12),0 2px 6px rgba(0,0,0,0.06); padding:10px 0 8px; min-width:200px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; }
+.sb-note-export-btn { display:flex; align-items:center; gap:9px; width:100%; padding:8px 13px; background:none; border:none; font-size:13px; font-family:inherit; color:#2a2825; cursor:pointer; text-align:left; transition:background 0.1s; }
+.sb-note-export-btn:hover { background:#f5f3f0; }
+.sb-export-meta-row { display:flex; align-items:center; gap:8px; padding:5px 13px 10px; border-bottom:1px solid #ede9e4; margin-bottom:5px; cursor:pointer; }
+.sb-export-badge { font-size:10px; font-weight:600; letter-spacing:0.4px; background:#f0ede8; border:1px solid #ddd9d3; border-radius:3px; padding:1px 5px; color:#666; flex-shrink:0; }
+
+#sb-content.sb-editing { outline:2px dashed rgba(59,110,165,0.45); outline-offset:8px; border-radius:4px; cursor:text; }
+#sb-content.sb-editing:focus { outline-color:rgba(59,110,165,0.75); }
+#sb-edit-cancel-btn { color:#c0392b; }
 </style>
 </head>
 <body>
@@ -386,6 +434,23 @@ body {
   function saveSettings() { /* in-memory only in this preview — see file header for the localStorage swap */ }
   function saveCustomThemes() { /* in-memory only in this preview — see file header for the localStorage swap */ }
 
+  // ── Pass 2: Notes state (in-memory only — see file header) ─────────
+  let _allNotes = [];
+  let _currentNoteId = null;
+  let _saveDebounce = null;
+  let _noteLabel = "";
+  let _notesDrawerOpen = false;
+  let _notesStripMode = false;
+  let _drawerWidth = 380;
+  let _stripHeight = 155;
+  let _setResizerMode = null;
+  function persistNotes() { /* in-memory only in this preview — see file header for the localStorage swap */ }
+
+  // ── Pass 2: Edit mode state ──────────────────────────────────────────
+  let _editModeActive = false;
+  let _editPrevGradientsOn = true;
+  let _editPrevSegmentOn = false;
+
   // ── Pagination state ───────────────────────────────────────────────
   let _allParagraphs = [];
   let _pageRanges = [];
@@ -471,6 +536,8 @@ body {
     _pageRanges = buildPages(_allParagraphs);
     _isPaginated = _pageRanges.length > 1;
     _currentPage = 0;
+    const titlePara = _allParagraphs.find(p => p.isTitle);
+    _noteLabel = (titlePara ? titlePara.text : rawText.trim().slice(0, 60)) || "Untitled";
     renderPage(container, 0);
     updatePageNav();
   }
@@ -677,6 +744,633 @@ body {
     `;
   }
 
+  // ════════════════════════════════════════════
+  // PASS 2: NOTES DRAWER
+  // ════════════════════════════════════════════
+  function buildNotesDrawer() {
+    const backdrop = document.createElement("div");
+    backdrop.id = "sb-notes-backdrop";
+    backdrop.addEventListener("click", closeNotesDrawer);
+    document.body.appendChild(backdrop);
+
+    const drawer = document.createElement("div");
+    drawer.id = "sb-notes-drawer";
+
+    const hdr = document.createElement("div");
+    hdr.id = "sb-notes-header";
+    const hdrTitle = document.createElement("span");
+    hdrTitle.textContent = "Notes";
+    const hdrClose = document.createElement("button");
+    hdrClose.id = "sb-notes-close";
+    hdrClose.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="1" y1="1" x2="10" y2="10"/><line x1="10" y1="1" x2="1" y2="10"/></svg>`;
+    hdrClose.addEventListener("click", closeNotesDrawer);
+    hdr.appendChild(hdrTitle); hdr.appendChild(hdrClose);
+    drawer.appendChild(hdr);
+
+    const newBar = document.createElement("div");
+    newBar.id = "sb-notes-newbar";
+    const newBtn = document.createElement("button");
+    newBtn.id = "sb-notes-new-btn";
+    newBtn.textContent = "+ New Note";
+    newBtn.addEventListener("click", () => openNoteEditor(null));
+    newBar.appendChild(newBtn);
+    drawer.appendChild(newBar);
+
+    const editorView = document.createElement("div");
+    editorView.id = "sb-notes-editor";
+    const edTb = document.createElement("div");
+    edTb.id = "sb-notes-edtb";
+    const backBtnEl = document.createElement("button");
+    backBtnEl.id = "sb-notes-back";
+    backBtnEl.textContent = "← Back";
+    backBtnEl.addEventListener("click", showNotesList);
+    const edTbRight = document.createElement("div");
+    edTbRight.id = "sb-notes-edtb-right";
+    const savedLabel = document.createElement("span");
+    savedLabel.id = "sb-notes-saved";
+    savedLabel.textContent = "Saved";
+    const stripBtn = document.createElement("button");
+    stripBtn.id = "sb-notes-strip-btn";
+    stripBtn.className = "sb-notes-mini-btn";
+    stripBtn.title = "Read while writing";
+    stripBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="1" y="7" width="11" height="5" rx="1"/><line x1="1" y1="1" x2="12" y2="1"/><line x1="1" y1="4" x2="9" y2="4"/></svg> Strip`;
+    stripBtn.addEventListener("click", toggleStripMode);
+    const exportBtn = document.createElement("button");
+    exportBtn.id = "sb-notes-export-btn";
+    exportBtn.className = "sb-notes-mini-btn";
+    exportBtn.title = "Export note";
+    exportBtn.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="5.5" y1="1" x2="5.5" y2="7.5"/><polyline points="2.5,5 5.5,8 8.5,5"/><line x1="1" y1="10" x2="10" y2="10"/></svg> Download`;
+    exportBtn.addEventListener("click", () => {
+      const note = _currentNoteId ? _allNotes.find(n => n.id === _currentNoteId) : null;
+      if (!note) return;
+      showNoteExportDropdown(exportBtn, note);
+    });
+    const delBtn = document.createElement("button");
+    delBtn.id = "sb-notes-delete";
+    delBtn.textContent = "Delete";
+    delBtn.addEventListener("click", deleteCurrentNote);
+    edTbRight.appendChild(savedLabel); edTbRight.appendChild(exportBtn); edTbRight.appendChild(stripBtn); edTbRight.appendChild(delBtn);
+    edTb.appendChild(backBtnEl); edTb.appendChild(edTbRight);
+    editorView.appendChild(edTb);
+
+    const textarea = document.createElement("textarea");
+    textarea.id = "sb-notes-textarea";
+    textarea.placeholder = "Start writing…";
+    textarea.addEventListener("input", onNoteInput);
+    editorView.appendChild(textarea);
+    drawer.appendChild(editorView);
+
+    const listView = document.createElement("div");
+    listView.id = "sb-notes-list";
+    drawer.appendChild(listView);
+
+    const resizer = document.createElement("div");
+    resizer.id = "sb-notes-resizer";
+    function applyResizerDrawerMode() {
+      resizer.style.cssText = "position:absolute;z-index:10012;background:transparent;top:0;left:0;bottom:0;width:7px;cursor:ew-resize;transition:background 0.15s;";
+    }
+    function applyResizerStripMode() {
+      resizer.style.cssText = "position:absolute;z-index:10012;background:transparent;top:0;left:0;right:0;height:7px;cursor:ns-resize;transition:background 0.15s;";
+    }
+    applyResizerDrawerMode();
+    resizer.addEventListener("mouseenter", () => { resizer.style.background = "rgba(100,100,100,0.12)"; });
+    resizer.addEventListener("mouseleave", () => { resizer.style.background = "transparent"; });
+    resizer.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      const startX = e.clientX, startY = e.clientY, startW = _drawerWidth, startH = _stripHeight, isStrip = _notesStripMode;
+      resizer.style.background = "rgba(100,100,100,0.22)";
+      const onMove = (ev) => {
+        const d = document.getElementById("sb-notes-drawer");
+        if (!d) return;
+        if (isStrip) {
+          const dy = startY - ev.clientY;
+          _stripHeight = Math.max(80, Math.min(440, startH + dy));
+          d.style.height = _stripHeight + "px";
+          const body = document.getElementById("sb-reader-body");
+          if (body) body.style.paddingBottom = _stripHeight + "px";
+        } else {
+          const dx = startX - ev.clientX;
+          _drawerWidth = Math.max(280, Math.min(Math.floor(window.innerWidth * 0.85), startW + dx));
+          d.style.width = _drawerWidth + "px";
+          d.style.maxWidth = _drawerWidth + "px";
+        }
+      };
+      const onUp = () => {
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+        resizer.style.background = "transparent";
+      };
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+    });
+    drawer.appendChild(resizer);
+    _setResizerMode = (strip) => strip ? applyResizerStripMode() : applyResizerDrawerMode();
+
+    document.body.appendChild(drawer);
+  }
+
+  function openNotesDrawer() {
+    _notesDrawerOpen = true;
+    const drawer = document.getElementById("sb-notes-drawer");
+    const backdrop = document.getElementById("sb-notes-backdrop");
+    if (drawer) drawer.style.transform = "translateX(0)";
+    if (backdrop) { backdrop.style.opacity = "1"; backdrop.style.pointerEvents = "auto"; }
+    showNotesList();
+  }
+
+  function closeNotesDrawer() {
+    if (!_notesDrawerOpen) return;
+    if (_notesStripMode) exitStripMode(false);
+    _notesDrawerOpen = false;
+    flushCurrentNote();
+    const drawer = document.getElementById("sb-notes-drawer");
+    const backdrop = document.getElementById("sb-notes-backdrop");
+    if (drawer) drawer.style.transform = "translateX(100%)";
+    if (backdrop) { backdrop.style.opacity = "0"; backdrop.style.pointerEvents = "none"; }
+  }
+
+  function toggleStripMode() { if (_notesStripMode) exitStripMode(true); else enterStripMode(); }
+
+  function enterStripMode() {
+    _notesStripMode = true;
+    const drawer = document.getElementById("sb-notes-drawer");
+    const backdrop = document.getElementById("sb-notes-backdrop");
+    const stripBtn = document.getElementById("sb-notes-strip-btn");
+    if (backdrop) { backdrop.style.opacity = "0"; backdrop.style.pointerEvents = "none"; }
+    if (drawer) {
+      drawer.style.top = "auto"; drawer.style.bottom = "0"; drawer.style.left = "0"; drawer.style.right = "0";
+      drawer.style.width = "100%"; drawer.style.maxWidth = "100%"; drawer.style.height = _stripHeight + "px";
+      drawer.style.flexDirection = "row"; drawer.style.borderLeft = "none"; drawer.style.borderTop = "1px solid #e0ddd8";
+      drawer.style.boxShadow = "0 -4px 24px rgba(0,0,0,0.13)"; drawer.style.transform = "none";
+      if (_setResizerMode) _setResizerMode(true);
+      const editorView = document.getElementById("sb-notes-editor");
+      const listView = document.getElementById("sb-notes-list");
+      const hdr = drawer.children[0];
+      const newBar = drawer.children[1];
+      if (hdr) hdr.style.display = "none";
+      if (newBar) newBar.style.display = "none";
+      if (listView) listView.style.display = "none";
+      if (editorView) { editorView.style.display = "flex"; editorView.style.flex = "1"; editorView.style.minWidth = "0"; editorView.style.minHeight = "0"; }
+      const edTb = editorView && editorView.children[0];
+      if (edTb) edTb.style.padding = "6px 14px";
+    }
+    if (stripBtn) {
+      stripBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="1" y="1" width="11" height="11" rx="1"/><line x1="4" y1="1" x2="4" y2="12"/></svg> Drawer`;
+      stripBtn.title = "Back to drawer";
+      stripBtn.style.background = "#e8f0fb"; stripBtn.style.color = "#2d5585"; stripBtn.style.borderColor = "#3b6ea5";
+    }
+    const body = document.getElementById("sb-reader-body");
+    if (body) body.style.paddingBottom = _stripHeight + "px";
+  }
+
+  function exitStripMode(reOpenDrawer) {
+    _notesStripMode = false;
+    const drawer = document.getElementById("sb-notes-drawer");
+    const backdrop = document.getElementById("sb-notes-backdrop");
+    const stripBtn = document.getElementById("sb-notes-strip-btn");
+    if (drawer) {
+      drawer.style.top = "0"; drawer.style.bottom = "0"; drawer.style.left = ""; drawer.style.right = "0";
+      drawer.style.width = _drawerWidth + "px"; drawer.style.maxWidth = _drawerWidth + "px"; drawer.style.height = "";
+      drawer.style.flexDirection = "column"; drawer.style.borderLeft = "1px solid #e0ddd8"; drawer.style.borderTop = "none";
+      drawer.style.boxShadow = "-6px 0 28px rgba(0,0,0,0.13)"; drawer.style.transform = reOpenDrawer ? "translateX(0)" : "translateX(100%)";
+      if (_setResizerMode) _setResizerMode(false);
+      const hdr = drawer.children[0];
+      const newBar = drawer.children[1];
+      if (hdr) hdr.style.display = "";
+      if (newBar) newBar.style.display = "";
+      const editorView = document.getElementById("sb-notes-editor");
+      if (editorView) { editorView.style.flex = ""; editorView.style.minWidth = ""; }
+      const edTb = editorView && editorView.children[0];
+      if (edTb) edTb.style.padding = "";
+    }
+    if (reOpenDrawer && backdrop) { backdrop.style.opacity = "1"; backdrop.style.pointerEvents = "auto"; }
+    if (stripBtn) {
+      stripBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="1" y="7" width="11" height="5" rx="1"/><line x1="1" y1="1" x2="12" y2="1"/><line x1="1" y1="4" x2="9" y2="4"/></svg> Strip`;
+      stripBtn.title = "Read while writing"; stripBtn.style.background = "none"; stripBtn.style.color = "#666"; stripBtn.style.borderColor = "#d0ccc8";
+    }
+    const body = document.getElementById("sb-reader-body");
+    if (body) body.style.paddingBottom = "";
+  }
+
+  function showNotesList() {
+    clearTimeout(_saveDebounce);
+    _currentNoteId = null;
+    if (_notesStripMode) exitStripMode(true);
+    const editorView = document.getElementById("sb-notes-editor");
+    const listView = document.getElementById("sb-notes-list");
+    if (editorView) editorView.style.display = "none";
+    if (listView) listView.style.display = "block";
+    renderNotesList();
+  }
+
+  function renderNotesList() {
+    const listView = document.getElementById("sb-notes-list");
+    if (!listView) return;
+    listView.innerHTML = "";
+    const thisPage = _allNotes.filter(n => n.label === _noteLabel);
+    const otherPages = _allNotes.filter(n => n.label !== _noteLabel);
+    if (_allNotes.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "sb-notes-empty";
+      empty.textContent = "No notes yet. Click + New Note to get started.";
+      listView.appendChild(empty);
+      return;
+    }
+    if (thisPage.length > 0) {
+      listView.appendChild(makeNotesSectionLabel("This text"));
+      thisPage.forEach(note => listView.appendChild(makeNoteListItem(note, false)));
+    }
+    if (otherPages.length > 0) {
+      listView.appendChild(makeNotesSectionLabel(thisPage.length > 0 ? "Other texts" : "All notes"));
+      otherPages.forEach(note => listView.appendChild(makeNoteListItem(note, true)));
+    }
+  }
+
+  function makeNotesSectionLabel(text) {
+    const el = document.createElement("div");
+    el.className = "sb-notes-section-label";
+    el.textContent = text;
+    return el;
+  }
+
+  function makeNoteListItem(note, isOtherPage) {
+    const item = document.createElement("div");
+    item.className = "sb-note-item";
+    item.addEventListener("click", () => openNoteEditor(note.id));
+    const titleEl = document.createElement("div");
+    titleEl.className = "sb-note-title";
+    titleEl.textContent = getNoteDisplayTitle(note);
+    const metaEl = document.createElement("div");
+    metaEl.className = "sb-note-meta";
+    const dateSpan = document.createElement("span");
+    dateSpan.style.flexShrink = "0";
+    dateSpan.textContent = formatNoteDate(note.updatedAt || note.createdAt);
+    metaEl.appendChild(dateSpan);
+    if (isOtherPage && note.label) {
+      const dot = document.createElement("span"); dot.textContent = "·"; dot.style.flexShrink = "0";
+      const src = document.createElement("span");
+      src.style.cssText = "white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+      src.textContent = note.label;
+      metaEl.appendChild(dot); metaEl.appendChild(src);
+    }
+    item.appendChild(titleEl); item.appendChild(metaEl);
+    return item;
+  }
+
+  function getNoteDisplayTitle(note) {
+    const body = (note.content || "").trim();
+    if (!body) return "Empty note";
+    const first = body.split("\n")[0].trim();
+    return first.length > 62 ? first.slice(0, 62) + "…" : first;
+  }
+
+  function formatNoteDate(ts) {
+    if (!ts) return "";
+    const d = new Date(ts);
+    const diff = Date.now() - d;
+    const mins = Math.floor(diff / 60000), hrs = Math.floor(diff / 3600000), days = Math.floor(diff / 86400000);
+    if (mins < 1) return "Just now";
+    if (mins < 60) return `${mins}m ago`;
+    if (hrs < 24) return `${hrs}h ago`;
+    if (days < 7) return `${days}d ago`;
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  }
+
+  function openNoteEditor(noteId) {
+    _currentNoteId = noteId;
+    const editorView = document.getElementById("sb-notes-editor");
+    const listView = document.getElementById("sb-notes-list");
+    const textarea = document.getElementById("sb-notes-textarea");
+    const savedLbl = document.getElementById("sb-notes-saved");
+    if (listView) listView.style.display = "none";
+    if (editorView) editorView.style.display = "flex";
+    if (savedLbl) savedLbl.style.opacity = "0";
+    if (noteId) {
+      const note = _allNotes.find(n => n.id === noteId);
+      textarea.value = note ? (note.content || "") : "";
+    } else {
+      textarea.value = "";
+    }
+    requestAnimationFrame(() => textarea.focus());
+  }
+
+  function onNoteInput() {
+    clearTimeout(_saveDebounce);
+    _saveDebounce = setTimeout(() => saveCurrentNote(true), 800);
+  }
+
+  function saveCurrentNote(showSaved) {
+    const textarea = document.getElementById("sb-notes-textarea");
+    if (!textarea) return;
+    const content = textarea.value;
+    if (content.trim().length < 3) return;
+    const now = Date.now();
+    if (_currentNoteId) {
+      const note = _allNotes.find(n => n.id === _currentNoteId);
+      if (note) { note.content = content; note.updatedAt = now; }
+    } else {
+      const newNote = { id: "note_" + now, label: _noteLabel, content, createdAt: now, updatedAt: now };
+      _allNotes.unshift(newNote);
+      _currentNoteId = newNote.id;
+    }
+    persistNotes();
+    if (showSaved) {
+      const savedLbl = document.getElementById("sb-notes-saved");
+      if (savedLbl) { savedLbl.style.opacity = "1"; setTimeout(() => { if (savedLbl) savedLbl.style.opacity = "0"; }, 1500); }
+    }
+  }
+
+  function deleteCurrentNote() {
+    if (_currentNoteId) { _allNotes = _allNotes.filter(n => n.id !== _currentNoteId); persistNotes(); }
+    showNotesList();
+  }
+
+  function flushCurrentNote() {
+    clearTimeout(_saveDebounce);
+    const editorView = document.getElementById("sb-notes-editor");
+    if (!editorView || editorView.style.display === "none") return;
+    const textarea = document.getElementById("sb-notes-textarea");
+    if (!textarea || textarea.value.trim().length < 3) return;
+    saveCurrentNote(false);
+  }
+
+  // ── Note export ──────────────────────────────────────────────────────
+  function sanitiseFilename(str) {
+    return (str || "note").replace(/[/\\:*?"<>|]/g, "").replace(/\s+/g, " ").trim().slice(0, 60) || "note";
+  }
+
+  function buildExportContent(note, includeMeta) {
+    const lines = [];
+    if (includeMeta) {
+      const d = new Date(note.updatedAt || note.createdAt);
+      lines.push("Date: " + d.toLocaleString());
+      lines.push(""); lines.push("---"); lines.push("");
+    }
+    lines.push(note.content || "");
+    return lines.join("\n");
+  }
+
+  function downloadTextFile(filename, content, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    requestAnimationFrame(() => { URL.revokeObjectURL(url); a.remove(); });
+  }
+
+  function exportNoteAsPdf(note, includeMeta) {
+    const content = buildExportContent(note, includeMeta);
+    const title = sanitiseFilename(getNoteDisplayTitle(note));
+    const oldTitle = document.title;
+    const prev = document.getElementById("sb-note-print-wrap");
+    const prevStyle = document.getElementById("sb-note-print-style");
+    if (prev) prev.remove();
+    if (prevStyle) prevStyle.remove();
+    const wrap = document.createElement("div");
+    wrap.id = "sb-note-print-wrap";
+    content.split("\n").forEach(line => { const p = document.createElement("p"); p.textContent = line; wrap.appendChild(p); });
+    const style = document.createElement("style");
+    style.id = "sb-note-print-style";
+    style.textContent = `
+      #sb-note-print-wrap { display: none; }
+      @media print {
+        body > *:not(#sb-note-print-wrap) { visibility: hidden !important; }
+        #sb-note-print-wrap {
+          display: block !important; visibility: visible !important; position: fixed; inset: 0;
+          padding: 28px 40px; font-family: Georgia, serif; font-size: 14px; line-height: 1.75;
+          color: #1a1714; background: #fff; print-color-adjust: exact; -webkit-print-color-adjust: exact;
+        }
+        #sb-note-print-wrap p { margin: 0 0 0.55em; font-family: inherit; font-size: inherit; line-height: inherit; color: inherit; }
+        #sb-note-print-wrap p:empty { margin-bottom: 1.1em; }
+      }
+    `;
+    document.head.appendChild(style);
+    document.body.appendChild(wrap);
+    document.title = title;
+    window.print();
+    window.addEventListener("afterprint", function cleanup() {
+      wrap.remove(); style.remove(); document.title = oldTitle;
+      window.removeEventListener("afterprint", cleanup);
+    });
+  }
+
+  let _noteExportIncludeMeta = true;
+
+  function showNoteExportDropdown(anchorEl, note) {
+    const existing = document.getElementById("sb-note-export-drop");
+    if (existing) { existing.remove(); return; }
+    let includeMeta = _noteExportIncludeMeta;
+    const drop = document.createElement("div");
+    drop.id = "sb-note-export-drop";
+    const rect = anchorEl.getBoundingClientRect();
+    drop.style.top = (rect.bottom + 6) + "px";
+    drop.style.left = rect.left + "px";
+
+    const metaRow = document.createElement("div");
+    metaRow.className = "sb-export-meta-row";
+    const cb = document.createElement("input");
+    cb.type = "checkbox"; cb.checked = includeMeta;
+    cb.style.cssText = "cursor:pointer;accent-color:#3b6ea5;width:14px;height:14px;flex-shrink:0;margin:0;";
+    const cbLabel = document.createElement("label");
+    cbLabel.style.cssText = "font-size:12px;color:#444;cursor:pointer;line-height:1.4;user-select:none;";
+    cbLabel.textContent = "Include date";
+    cb.addEventListener("change", () => { includeMeta = cb.checked; _noteExportIncludeMeta = cb.checked; });
+    metaRow.addEventListener("click", (e) => { if (e.target !== cb) { cb.checked = !cb.checked; cb.dispatchEvent(new Event("change")); } });
+    metaRow.appendChild(cb); metaRow.appendChild(cbLabel);
+    drop.appendChild(metaRow);
+
+    function makeExportBtn(label, ext, handler) {
+      const btn = document.createElement("button");
+      btn.className = "sb-note-export-btn";
+      const badge = document.createElement("span"); badge.className = "sb-export-badge"; badge.textContent = ext;
+      btn.appendChild(badge); btn.appendChild(document.createTextNode(label));
+      btn.addEventListener("click", () => { handler(includeMeta); drop.remove(); });
+      return btn;
+    }
+
+    drop.appendChild(makeExportBtn("Plain text", ".TXT", (meta) => {
+      const ta = document.getElementById("sb-notes-textarea");
+      if (ta && _currentNoteId) { const live = _allNotes.find(n => n.id === _currentNoteId); if (live) live.content = ta.value; }
+      downloadTextFile(sanitiseFilename(getNoteDisplayTitle(note)) + ".txt", buildExportContent(note, meta), "text/plain");
+    }));
+    drop.appendChild(makeExportBtn("Markdown", ".MD", (meta) => {
+      const ta = document.getElementById("sb-notes-textarea");
+      if (ta && _currentNoteId) { const live = _allNotes.find(n => n.id === _currentNoteId); if (live) live.content = ta.value; }
+      downloadTextFile(sanitiseFilename(getNoteDisplayTitle(note)) + ".md", buildExportContent(note, meta), "text/markdown");
+    }));
+    drop.appendChild(makeExportBtn("PDF (via print)", ".PDF", (meta) => {
+      const ta = document.getElementById("sb-notes-textarea");
+      if (ta && _currentNoteId) { const live = _allNotes.find(n => n.id === _currentNoteId); if (live) live.content = ta.value; }
+      exportNoteAsPdf(note, meta);
+    }));
+
+    document.body.appendChild(drop);
+    setTimeout(() => {
+      document.addEventListener("click", function handler(e) {
+        if (!drop.contains(e.target) && e.target !== anchorEl) { drop.remove(); document.removeEventListener("click", handler); }
+      });
+    }, 0);
+  }
+
+  // ════════════════════════════════════════════
+  // PASS 2: EDIT MODE
+  // ════════════════════════════════════════════
+  function leaveEditModeIfActive() { if (_editModeActive) exitEditMode(true); }
+
+  function enterEditMode() {
+    const container = document.getElementById("sb-content");
+    if (!container || _editModeActive) return;
+    _editModeActive = true;
+    _editPrevGradientsOn = S.gradientsOn;
+    _editPrevSegmentOn = S.segmentOn;
+    if (_resizeObserver) { _resizeObserver.disconnect(); _resizeObserver = null; }
+    clearTimeout(_resizeTimer);
+    const savedScrollY = window.scrollY;
+    S.gradientsOn = false; S.segmentOn = false;
+    renderPage(container, _currentPage);
+    try { document.execCommand("defaultParagraphSeparator", false, "p"); } catch (_) {}
+    container.contentEditable = "true";
+    container.spellcheck = true;
+    container.classList.add("sb-editing");
+    container.addEventListener("paste", onEditPaste);
+    updateEditToolbarUI(true);
+    container.focus({ preventScroll: true });
+    requestAnimationFrame(() => window.scrollTo({ top: savedScrollY, behavior: "instant" }));
+  }
+
+  function onEditPaste(e) {
+    e.preventDefault();
+    const text = (e.clipboardData || window.clipboardData).getData("text/plain");
+    document.execCommand("insertText", false, text);
+  }
+
+  function exitEditMode(save) {
+    const container = document.getElementById("sb-content");
+    if (!container || !_editModeActive) return;
+    if (save) commitEditsFromContainer(container);
+    container.contentEditable = "false";
+    container.classList.remove("sb-editing");
+    container.removeEventListener("paste", onEditPaste);
+    _editModeActive = false;
+    S.gradientsOn = _editPrevGradientsOn;
+    S.segmentOn = _editPrevSegmentOn;
+    const savedScrollY = window.scrollY;
+    renderPage(container, _currentPage);
+    applyStyles();
+    updateEditToolbarUI(false);
+    requestAnimationFrame(() => window.scrollTo({ top: savedScrollY, behavior: "instant" }));
+  }
+
+  function commitEditsFromContainer(container) {
+    const range = _pageRanges[_currentPage] || { start: 0, end: _allParagraphs.length };
+    const newEntries = [];
+    container.childNodes.forEach(node => {
+      if (node.nodeType !== Node.ELEMENT_NODE) return;
+      const text = (node.textContent || "").replace(/\s+/g, ' ').trim();
+      if (!text) return;
+      newEntries.push({ text, isTitle: node.classList.contains("sb-title"), isMeta: node.classList.contains("sb-meta-bar") });
+    });
+    _allParagraphs = [..._allParagraphs.slice(0, range.start), ...newEntries, ..._allParagraphs.slice(range.end)];
+    _pageRanges = buildPages(_allParagraphs);
+    _isPaginated = _pageRanges.length > 1;
+    _currentPage = Math.min(_currentPage, Math.max(0, _pageRanges.length - 1));
+  }
+
+  function updateEditToolbarUI(active) {
+    const editBtn = document.getElementById("sb-edit-tb-btn");
+    const cancelBtn = document.getElementById("sb-edit-cancel-btn");
+    if (!editBtn || !cancelBtn) return;
+    editBtn.textContent = active ? "Done Editing" : "Edit";
+    editBtn.classList.toggle("active", active);
+    cancelBtn.style.display = active ? "flex" : "none";
+  }
+
+  // ════════════════════════════════════════════
+  // PASS 2: ARTICLE EXPORT (PDF + TXT) + FULL SCREEN
+  // ════════════════════════════════════════════
+  function savePdfArticle() {
+    function injectPrintStyles() {
+      const prev = document.getElementById("sb-print-style");
+      if (prev) prev.remove();
+      const style = document.createElement("style");
+      style.id = "sb-print-style";
+      const printColor = S.gradientsOn ? S.gradientStart : S.fontColor;
+      style.textContent = [
+        "@media print {",
+        "  html, body { background: " + S.textBg + " !important; print-color-adjust: exact; -webkit-print-color-adjust: exact; }",
+        "  #sb-panel { background: " + S.textBg + " !important; print-color-adjust: exact; -webkit-print-color-adjust: exact; }",
+        "  #sb-content { font-family: '" + S.fontFamily + "', Georgia, serif !important; font-size: " + S.fontSize + "rem !important; line-height: " + S.lineHeight + " !important; color: " + printColor + " !important; }",
+        "  #sb-content .sb-p, #sb-content .sb-title { color: " + printColor + " !important; font-family: '" + S.fontFamily + "', Georgia, serif !important; }",
+        "  #sb-content .sb-p:not(.sb-title) { margin-top: 0 !important; margin-bottom: 0.85em !important; }",
+        "  #sb-content .sb-p .sb-line { color: " + printColor + " !important; -webkit-text-fill-color: " + printColor + " !important; font-family: '" + S.fontFamily + "', Georgia, serif !important; }",
+        "  #sb-toolbar, #sb-top-controls, #sb-page-prev, #sb-page-next, #sb-page-label, #sb-page-footer { display: none !important; }",
+        "  #sb-reader-body { padding: 0 !important; }",
+        "}",
+      ].join("\n");
+      document.head.appendChild(style);
+      return style;
+    }
+    if (!_isPaginated) { const style = injectPrintStyles(); window.print(); setTimeout(() => style.remove(), 500); return; }
+
+    const container = document.getElementById("sb-content");
+    const savedPage = _currentPage;
+    if (_resizeObserver) { _resizeObserver.disconnect(); _resizeObserver = null; }
+    clearTimeout(_resizeTimer);
+    container.innerHTML = "";
+    _allParagraphs.forEach(({ text, isTitle, isMeta }) => {
+      if (isMeta) { const bar = document.createElement("div"); bar.className = "sb-meta-bar"; bar.textContent = text; container.appendChild(bar); return; }
+      const p = document.createElement("p");
+      p.className = "sb-p";
+      if (isTitle) p.classList.add("sb-title");
+      p.textContent = text;
+      container.appendChild(p);
+    });
+    requestAnimationFrame(() => {
+      const style = injectPrintStyles();
+      window.print();
+      setTimeout(() => { style.remove(); renderPage(container, savedPage); applyStyles(); }, 500);
+    });
+  }
+
+  let _articleExportIncludeMeta = true;
+
+  function buildArticleSavePanel(panel) {
+    let includeMeta = _articleExportIncludeMeta;
+    const metaRow = document.createElement("div");
+    metaRow.className = "sb-export-meta-row";
+    const cb = document.createElement("input");
+    cb.type = "checkbox"; cb.checked = includeMeta;
+    cb.style.cssText = "cursor:pointer;accent-color:#3b6ea5;width:14px;height:14px;flex-shrink:0;margin:0;";
+    const cbLabel = document.createElement("label");
+    cbLabel.style.cssText = "font-size:12px;cursor:pointer;line-height:1.4;user-select:none;opacity:0.75;";
+    cbLabel.textContent = "Include date";
+    cb.addEventListener("change", () => { includeMeta = cb.checked; _articleExportIncludeMeta = cb.checked; });
+    metaRow.addEventListener("click", (e) => { if (e.target !== cb) { cb.checked = !cb.checked; cb.dispatchEvent(new Event("change")); } });
+    metaRow.appendChild(cb); metaRow.appendChild(cbLabel);
+    panel.appendChild(metaRow);
+
+    function makeSaveRow(label, ext, handler) {
+      const row = document.createElement("div");
+      row.className = "sb-option";
+      row.style.cssText = "gap:9px;width:100%;";
+      const badge = document.createElement("span"); badge.className = "sb-export-badge"; badge.textContent = ext;
+      row.appendChild(badge); row.appendChild(document.createTextNode(label));
+      row.addEventListener("click", () => { closeAllDropdowns(); handler(includeMeta); });
+      return row;
+    }
+
+    panel.appendChild(makeSaveRow("PDF (via print)", ".PDF", () => savePdfArticle()));
+    panel.appendChild(makeSaveRow("Plain text", ".TXT", (meta) => {
+      const parts = [];
+      if (meta) parts.push("Date:   " + new Date().toLocaleString() + "\n---");
+      _allParagraphs.forEach(({ text, isMeta: isMetaPara }) => { if (!isMetaPara && text.trim()) parts.push(text); });
+      const titlePara = _allParagraphs.find(p => p.isTitle);
+      const filename = sanitiseFilename(titlePara ? titlePara.text : "sky-reader-export") + ".txt";
+      downloadTextFile(filename, parts.join("\n\n"), "text/plain");
+    }));
+  }
+
   // ── Small DOM helpers (ported verbatim) ────────────────────────────
   const makeLabel = (t) => { const e = document.createElement("div"); e.className = "sb-label"; e.textContent = t; return e; };
   const makeDivider = () => { const e = document.createElement("div"); e.className = "sb-divider"; return e; };
@@ -711,6 +1405,49 @@ body {
     tb.appendChild(makeDropdown("Gradients", buildGradientsPanel));
     tb.appendChild(makeDropdown("Colors", buildColorsPanel));
     tb.appendChild(makeDropdown("Themes", buildThemesPanel));
+
+    const notesBtn = document.createElement("button");
+    notesBtn.id = "sb-notes-tb-btn";
+    notesBtn.className = "sb-tb-btn";
+    notesBtn.textContent = "Notes";
+    notesBtn.addEventListener("click", () => {
+      closeAllDropdowns();
+      leaveEditModeIfActive();
+      if (_notesDrawerOpen) closeNotesDrawer(); else openNotesDrawer();
+    });
+    tb.appendChild(notesBtn);
+
+    const editWrap = document.createElement("div");
+    editWrap.style.cssText = "display:flex;align-items:stretch;";
+    const editBtn = document.createElement("button");
+    editBtn.id = "sb-edit-tb-btn";
+    editBtn.className = "sb-tb-btn";
+    editBtn.textContent = "Edit";
+    const editCancelBtn = document.createElement("button");
+    editCancelBtn.id = "sb-edit-cancel-btn";
+    editCancelBtn.className = "sb-tb-btn";
+    editCancelBtn.textContent = "Cancel";
+    editCancelBtn.style.display = "none";
+    editBtn.addEventListener("click", () => {
+      closeAllDropdowns();
+      if (_notesDrawerOpen) closeNotesDrawer();
+      if (_editModeActive) exitEditMode(true); else enterEditMode();
+    });
+    editCancelBtn.addEventListener("click", () => exitEditMode(false));
+    editWrap.appendChild(editBtn); editWrap.appendChild(editCancelBtn);
+    tb.appendChild(editWrap);
+
+    tb.appendChild(makeDropdown("Export", buildArticleSavePanel));
+
+    const fsBtn = document.createElement("button");
+    fsBtn.className = "sb-tb-btn";
+    fsBtn.textContent = "Full Screen";
+    fsBtn.addEventListener("click", () => {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+      else document.exitFullscreen();
+    });
+    tb.appendChild(fsBtn);
+
     document.body.appendChild(tb);
     tb.addEventListener("wheel", (e) => { if (tb.scrollWidth > tb.clientWidth) { e.preventDefault(); tb.scrollLeft += e.deltaY; } }, { passive: false });
     document.addEventListener("click", (e) => {
@@ -734,6 +1471,8 @@ body {
       e.stopPropagation();
       const isOpen = panel.classList.contains("open");
       closeAllDropdowns();
+      leaveEditModeIfActive();
+      if (_notesDrawerOpen) closeNotesDrawer();
       if (!isOpen) {
         const rect = btn.getBoundingClientRect();
         panel.classList.add("open");
@@ -1223,6 +1962,7 @@ body {
       if (!toolbarBuilt) {
         buildToolbar();
         buildPageNav();
+        buildNotesDrawer();
         toolbarBuilt = true;
       }
 
@@ -1234,6 +1974,8 @@ body {
     });
 
     backBtn.addEventListener("click", () => {
+      if (_notesDrawerOpen) closeNotesDrawer();
+      if (_editModeActive) exitEditMode(false);
       readerEl.style.display = "none";
       introEl.style.display = "flex";
     });
@@ -1252,6 +1994,12 @@ body {
       const isTyping = activeTag === "INPUT" || activeTag === "TEXTAREA";
       if (!isTyping && e.key === "ArrowRight" && _isPaginated && _currentPage < _pageRanges.length - 1) goToPage(_currentPage + 1);
       if (!isTyping && e.key === "ArrowLeft" && _isPaginated && _currentPage > 0) goToPage(_currentPage - 1);
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+      if (_editModeActive) { e.preventDefault(); exitEditMode(false); return; }
+      if (_notesDrawerOpen) { e.preventDefault(); closeNotesDrawer(); return; }
     });
   });
 })();
