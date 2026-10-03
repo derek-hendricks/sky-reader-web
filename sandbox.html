@@ -345,6 +345,44 @@ body {
 #sb-content.sb-editing { outline:2px dashed rgba(59,110,165,0.45); outline-offset:8px; border-radius:4px; cursor:text; }
 #sb-content.sb-editing:focus { outline-color:rgba(59,110,165,0.75); }
 #sb-edit-cancel-btn { color:#c0392b; }
+
+/* ════════════════════════════════════════════
+   PASS 3: FIND IN ARTICLE + SPEED READ
+════════════════════════════════════════════ */
+#sb-find-btn {
+  background:#f0ede8; border:1px solid #ddd9d3; border-radius:6px; color:#555; cursor:pointer;
+  padding:5px 10px; display:flex; align-items:center; transition:background 0.15s,color 0.15s; line-height:1;
+}
+#sb-find-btn svg { width:13px; height:13px; flex-shrink:0; }
+#sb-find-btn:hover, #sb-find-btn.active { background:#3b6ea5; border-color:#3b6ea5; color:#fff; }
+#sb-find-bar {
+  display:none; position:fixed; top:46px; right:14px; z-index:10001; width:300px;
+  background:#edeae5; border:1px solid #ddd9d3; border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,0.15);
+  padding:8px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+}
+#sb-find-bar.open { display:block; }
+#sb-find-row { display:flex; align-items:center; gap:6px; }
+#sb-find-input {
+  flex:1; min-width:0; padding:6px 8px; font-size:13px; border:1px solid #ddd9d3; border-radius:5px;
+  background:#fff; color:#2a2825; outline:none; font-family:inherit;
+}
+#sb-find-input:focus { border-color:#3b6ea5; }
+#sb-find-count { font-size:11px; color:#8a8478; white-space:nowrap; min-width:40px; text-align:center; flex-shrink:0; }
+.sb-find-nav-btn, #sb-find-close-btn {
+  background:none; border:1px solid #ddd9d3; border-radius:5px; color:#555; cursor:pointer; padding:5px 7px;
+  display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:background 0.12s,color 0.12s;
+}
+.sb-find-nav-btn:hover, #sb-find-close-btn:hover { background:#3b6ea5; color:#fff; border-color:#3b6ea5; }
+.sb-find-nav-btn:disabled { opacity:0.35; cursor:default; }
+.sb-find-nav-btn:disabled:hover { background:none; color:#555; border-color:#ddd9d3; }
+#sb-find-nomatch { font-size:11px; color:#c0392b; padding:5px 2px 0; display:none; }
+#sb-content mark.sb-find-hit { background:#ffe58a; color:#1a1714; border-radius:2px; padding:0 1px; }
+.sb-lt-start {
+  display:block; width:calc(100% - 32px); margin:10px 16px 0; padding:10px; background:#2d3a5c; color:#d4c97a;
+  border:none; border-radius:6px; font-size:15px; font-family:inherit; font-weight:600; cursor:pointer;
+  letter-spacing:1px; transition:opacity 0.15s;
+}
+.sb-lt-start:hover { opacity:0.9; }
 </style>
 </head>
 <body>
@@ -366,6 +404,9 @@ body {
 <!-- ════════════════════════ READER ════════════════════════ -->
 <div id="sb-reader">
   <div id="sb-top-controls">
+    <button id="sb-find-btn">
+      <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="6" cy="6" r="4.5"/><line x1="9.3" y1="9.3" x2="13" y2="13"/></svg>
+    </button>
     <button id="sb-toolbar-toggle">
       <svg viewBox="0 0 12 8" width="12" height="8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition:transform 0.2s"><polyline points="1,7 6,1 11,7"/></svg>
       <span id="sb-toolbar-toggle-text">Hide Bar</span>
@@ -374,6 +415,23 @@ body {
       <svg viewBox="0 0 10 10" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="1" y1="1" x2="9" y2="9"/><line x1="9" y1="1" x2="1" y2="9"/></svg>
       Edit text
     </button>
+  </div>
+
+  <div id="sb-find-bar" role="search">
+    <div id="sb-find-row">
+      <input type="text" id="sb-find-input" placeholder="Find…" autocomplete="off" spellcheck="false" />
+      <span id="sb-find-count"></span>
+      <button class="sb-find-nav-btn" id="sb-find-prev">
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="7,1 2,5 7,9"/></svg>
+      </button>
+      <button class="sb-find-nav-btn" id="sb-find-next">
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,1 8,5 3,9"/></svg>
+      </button>
+      <button id="sb-find-close-btn">
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><line x1="1" y1="1" x2="9" y2="9"/><line x1="9" y1="1" x2="1" y2="9"/></svg>
+      </button>
+    </div>
+    <div id="sb-find-nomatch">No matches found</div>
   </div>
 
   <div id="sb-page-bg"></div>
@@ -410,7 +468,7 @@ body {
   };
 
   const DEFAULT_SETTINGS = {
-    fontFamily: "Georgia", fontSize: 1.6, lineHeight: 1.45, charsPerLine: 120,
+    fontFamily: "Georgia", fontSize: 1.6, lineHeight: 1.45, charsPerLine: 75,
     bgPreset: "", textBg: "#1d1a15", fontColor: "#c8bfaa", pageBg: "#141210",
     gradientsOn: true, gradientStart: "#b8a888", gradientEnd: "#7a6850",
     dimness: 0, theme: "dusk", segmentOn: false,
@@ -450,6 +508,14 @@ body {
   let _editModeActive = false;
   let _editPrevGradientsOn = true;
   let _editPrevSegmentOn = false;
+
+  // ── Pass 3: Find state ───────────────────────────────────────────────
+  let _findOpen = false;
+  let _findQuery = "";
+  let _findMatches = [];
+  let _findCurrentIndex = -1;
+  let _findPrevGradientsOn = true;
+  let _findDebounce = null;
 
   // ── Pagination state ───────────────────────────────────────────────
   let _allParagraphs = [];
@@ -530,6 +596,37 @@ body {
     return parts.map(s => s.replace(/\x00/g, '.').trim()).filter(Boolean);
   }
 
+  // ── PDF-style line-wrap joining (ported from popup.js's custom-text path) ──
+  //
+  //  Pasted text from a PDF often has a single \n sitting at BOTH a real
+  //  paragraph break and an ordinary mid-sentence line wrap — the two are
+  //  indistinguishable at the character level once pasted. This heuristic
+  //  tells them apart: a line ending in real sentence-final punctuation
+  //  (and not an abbreviation like "Mr." or a month name) followed by a
+  //  line starting with a capital letter or opening quote is treated as a
+  //  paragraph break; anything else is treated as a wrapped line and
+  //  rejoined with a space (or directly, de-hyphenating, if the previous
+  //  line ended mid-word). Any \n{2,} already in the pasted text is left
+  //  alone — this only resolves the ambiguous single-\n case.
+  function joinPdfLineWraps(text) {
+    return text
+      .replace(/\r\n/g, '\n')
+      .replace(/\n{2,}/g, '\0')
+      .split('\n')
+      .reduce((acc, line, i, arr) => {
+        if (i === 0) return line;
+        const prev = arr[i - 1];
+        const ABBREV_END_RE = /\b(Mr|Mrs|Ms|Miss|Dr|Prof|Sr|Jr|Snr|vs|etc|approx|est|vol|no|nos|pp|dept|govt|Corp|Inc|Ltd|Co|St|Ave|Blvd|Rd|Mt|Ft|Gen|Sgt|Cpl|Pvt|Rep|Sen|Gov|Pres|Rev|Hon|Capt|Maj|Col|Brig|Adm|Cmdr|Lt|Insp|Fig|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\.\s*$/i;
+        const prevEndsSentence = /[.!?…]['")\]]*\s*$/.test(prev) && !ABBREV_END_RE.test(prev);
+        const curStartsCap = /^\s*[A-Z\u201C"]/.test(line);
+        if (prevEndsSentence && curStartsCap) return acc + '\n\n' + line;
+        if (/-$/.test(prev)) return acc.replace(/-$/, '') + line;
+        return acc + ' ' + line;
+      }, '')
+      .replace(/\0/g, '\n\n')
+      .replace(/ {2,}/g, ' ');
+  }
+
   // ── Rendering ───────────────────────────────────────────────────────
   function renderText(container, rawText) {
     _allParagraphs = parseParagraphs(rawText);
@@ -555,6 +652,8 @@ body {
       if (isMeta) {
         const bar = document.createElement("div");
         bar.className = "sb-meta-bar";
+        bar.dataset.sbSrcIndex = absIndex;
+        bar.dataset.sbSegIndex = 0;
         bar.textContent = text;
         container.appendChild(bar);
         return;
@@ -563,6 +662,8 @@ body {
       segments.forEach((seg, si) => {
         const p = document.createElement("p");
         p.className = "sb-p";
+        p.dataset.sbSrcIndex = absIndex;
+        p.dataset.sbSegIndex = si;
         if (isTitle) p.classList.add("sb-title");
         if (S.segmentOn && !isTitle) {
           p.classList.add("sb-segment");
@@ -609,7 +710,7 @@ body {
       });
       if (curLine.length) lines.push(curLine);
       p.innerHTML = "";
-      lines.forEach((lineWords) => {
+      lines.forEach((lineWords, lineIdx) => {
         const forward = globalLine % 2 === 0;
         const g = forward
           ? `linear-gradient(to right, ${S.gradientStart}, ${S.gradientEnd})`
@@ -626,6 +727,7 @@ body {
         span.style.webkitTextFillColor = "transparent";
         span.style.backgroundClip = "text";
         p.appendChild(span);
+        if (lineIdx < lines.length - 1) p.appendChild(document.createElement("br"));
         globalLine++;
       });
     });
@@ -714,6 +816,9 @@ body {
       requestAnimationFrame(() => applyLineGradients(content));
     } else {
       removeGradients(content);
+    }
+    if (S.theme === "crt" && _crtApplyGlow && _crtGlowOn) {
+      _crtApplyGlow(true);
     }
     applyToolbarColors();
     refreshGradientPanel();
@@ -1405,6 +1510,7 @@ body {
     tb.appendChild(makeDropdown("Gradients", buildGradientsPanel));
     tb.appendChild(makeDropdown("Colors", buildColorsPanel));
     tb.appendChild(makeDropdown("Themes", buildThemesPanel));
+    tb.appendChild(makeDropdown("Speed Read", buildLightningPanel));
 
     const notesBtn = document.createElement("button");
     notesBtn.id = "sb-notes-tb-btn";
@@ -1413,6 +1519,7 @@ body {
     notesBtn.addEventListener("click", () => {
       closeAllDropdowns();
       leaveEditModeIfActive();
+      if (_findOpen) closeFind();
       if (_notesDrawerOpen) closeNotesDrawer(); else openNotesDrawer();
     });
     tb.appendChild(notesBtn);
@@ -1431,6 +1538,7 @@ body {
     editBtn.addEventListener("click", () => {
       closeAllDropdowns();
       if (_notesDrawerOpen) closeNotesDrawer();
+      if (_findOpen) closeFind();
       if (_editModeActive) exitEditMode(true); else enterEditMode();
     });
     editCancelBtn.addEventListener("click", () => exitEditMode(false));
@@ -1473,6 +1581,7 @@ body {
       closeAllDropdowns();
       leaveEditModeIfActive();
       if (_notesDrawerOpen) closeNotesDrawer();
+      if (_findOpen) closeFind();
       if (!isOpen) {
         const rect = btn.getBoundingClientRect();
         panel.classList.add("open");
@@ -1489,6 +1598,598 @@ body {
   function closeAllDropdowns() {
     document.querySelectorAll(".sb-tb-panel").forEach((p) => p.classList.remove("open"));
     document.querySelectorAll(".sb-tb-btn").forEach((b) => b.classList.remove("active"));
+  }
+
+  // ════════════════════════════════════════════
+  // PASS 3: FIND IN ARTICLE
+  // ════════════════════════════════════════════
+  function buildFindUI() {
+    const btn = document.getElementById("sb-find-btn");
+    const bar = document.getElementById("sb-find-bar");
+    const input = document.getElementById("sb-find-input");
+    const prevBtn = document.getElementById("sb-find-prev");
+    const nextBtn = document.getElementById("sb-find-next");
+    const closeBtn = document.getElementById("sb-find-close-btn");
+    if (!btn || !bar || !input) return;
+    btn.addEventListener("click", () => { if (_findOpen) closeFind(); else openFind(); });
+    closeBtn.addEventListener("click", closeFind);
+    prevBtn.addEventListener("click", () => stepFind(-1));
+    nextBtn.addEventListener("click", () => stepFind(1));
+    input.addEventListener("input", () => runFind(input.value));
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); stepFind(e.shiftKey ? -1 : 1); }
+      else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeFind(); }
+    });
+  }
+
+  function computeFindTextColor() {
+    if (!S.gradientsOn) return S.fontColor;
+    const endRgb = hexToRgb(S.gradientEnd);
+    if (!endRgb) return S.fontColor;
+    return blendHex(S.gradientStart, endRgb, 0.5);
+  }
+
+  function openFind() {
+    if (_findOpen) { document.getElementById("sb-find-input").focus(); return; }
+    closeAllDropdowns();
+    leaveEditModeIfActive();
+    if (_notesDrawerOpen) closeNotesDrawer();
+    _findOpen = true;
+    _findPrevGradientsOn = S.gradientsOn;
+    const flatColor = computeFindTextColor();
+    S.gradientsOn = false;
+    const content = document.getElementById("sb-content");
+    renderPage(content, _currentPage);
+    content.style.color = flatColor;
+    const btn = document.getElementById("sb-find-btn");
+    const bar = document.getElementById("sb-find-bar");
+    if (btn) btn.classList.add("active");
+    if (bar) bar.classList.add("open");
+    const input = document.getElementById("sb-find-input");
+    input.value = _findQuery;
+    requestAnimationFrame(() => { input.focus(); input.select(); });
+    if (_findQuery) runFind(_findQuery);
+  }
+
+  function closeFind() {
+    if (!_findOpen) return;
+    _findOpen = false;
+    clearTimeout(_findDebounce);
+    const btn = document.getElementById("sb-find-btn");
+    const bar = document.getElementById("sb-find-bar");
+    if (btn) btn.classList.remove("active");
+    if (bar) bar.classList.remove("open");
+    S.gradientsOn = _findPrevGradientsOn;
+    renderPage(document.getElementById("sb-content"), _currentPage);
+    applyStyles();
+  }
+
+  function runFind(query) {
+    _findQuery = query;
+    clearTimeout(_findDebounce);
+    _findDebounce = setTimeout(() => {
+      buildFindMatches(query);
+      if (_findMatches.length) {
+        let target = _findMatches.findIndex(m => m.pageNum >= _currentPage);
+        if (target === -1) target = 0;
+        goToFindMatch(target);
+      } else {
+        _findCurrentIndex = -1;
+        renderPage(document.getElementById("sb-content"), _currentPage);
+        updateFindCount();
+      }
+    }, 150);
+  }
+
+  function buildFindMatches(query) {
+    _findMatches = [];
+    const q = query.trim();
+    if (!q) return;
+    const qLower = q.toLowerCase();
+    const scanText = (text, absIndex, segIndex, pageNum) => {
+      const lower = text.toLowerCase();
+      let occurrence = 0, from = 0;
+      while (true) {
+        const idx = lower.indexOf(qLower, from);
+        if (idx === -1) break;
+        _findMatches.push({ absIndex, segIndex, pageNum, occurrence, matchLen: q.length });
+        occurrence++;
+        from = idx + q.length;
+      }
+    };
+    const pageForAbsIndex = (absIndex) => {
+      for (let p = 0; p < _pageRanges.length; p++) {
+        if (absIndex >= _pageRanges[p].start && absIndex < _pageRanges[p].end) return p;
+      }
+      return 0;
+    };
+    _allParagraphs.forEach((p, i) => {
+      if (!p.text) return;
+      const pageNum = pageForAbsIndex(i);
+      if (S.segmentOn && !p.isTitle && !p.isMeta) {
+        splitIntoSentences(p.text).forEach((sent, si) => scanText(sent, i, si, pageNum));
+      } else {
+        scanText(p.text, i, 0, pageNum);
+      }
+    });
+  }
+
+  function goToFindMatch(index) {
+    if (!_findMatches.length) return;
+    index = ((index % _findMatches.length) + _findMatches.length) % _findMatches.length;
+    _findCurrentIndex = index;
+    const match = _findMatches[index];
+    const container = document.getElementById("sb-content");
+    renderPage(container, match.pageNum);
+    const el = container.querySelector(`[data-sb-src-index="${match.absIndex}"][data-sb-seg-index="${match.segIndex}"]`);
+    if (el) {
+      const mark = highlightMatchInElement(el, match.occurrence, match.matchLen, _findQuery);
+      if (mark) mark.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    updateFindCount();
+  }
+
+  function highlightMatchInElement(el, occurrenceIndex, matchLen, query) {
+    const qLower = query.toLowerCase();
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    let node, count = 0;
+    while ((node = walker.nextNode())) {
+      const lower = node.textContent.toLowerCase();
+      let from = 0;
+      while (true) {
+        const idx = lower.indexOf(qLower, from);
+        if (idx === -1) break;
+        if (count === occurrenceIndex) {
+          const range = document.createRange();
+          range.setStart(node, idx);
+          range.setEnd(node, idx + matchLen);
+          const mark = document.createElement("mark");
+          mark.className = "sb-find-hit";
+          try { range.surroundContents(mark); } catch (_) { return null; }
+          return mark;
+        }
+        count++;
+        from = idx + matchLen;
+      }
+    }
+    return null;
+  }
+
+  function stepFind(dir) {
+    if (!_findMatches.length) return;
+    goToFindMatch(_findCurrentIndex + dir);
+  }
+
+  function updateFindCount() {
+    const countEl = document.getElementById("sb-find-count");
+    const noMatchEl = document.getElementById("sb-find-nomatch");
+    const prevBtn = document.getElementById("sb-find-prev");
+    const nextBtn = document.getElementById("sb-find-next");
+    if (!countEl) return;
+    if (!_findQuery.trim()) {
+      countEl.textContent = "";
+      if (noMatchEl) noMatchEl.style.display = "none";
+    } else if (_findMatches.length === 0) {
+      countEl.textContent = "";
+      if (noMatchEl) noMatchEl.style.display = "block";
+    } else {
+      countEl.textContent = `${_findCurrentIndex + 1} / ${_findMatches.length}`;
+      if (noMatchEl) noMatchEl.style.display = "none";
+    }
+    const disable = _findMatches.length === 0;
+    if (prevBtn) prevBtn.disabled = disable;
+    if (nextBtn) nextBtn.disabled = disable;
+  }
+
+  // ════════════════════════════════════════════
+  // PASS 3: SPEED READ (RSVP)
+  // ════════════════════════════════════════════
+  function mergePunctuationTokens(tokens) {
+    const OPEN_PUNCT = /^[\(\[\{"“‘«¿¡]+$/;
+    const PURE_PUNCT = /^[^\p{L}\p{N}]+$/u;
+    const result = [];
+    let leadingBuffer = "";
+    for (let i = 0; i < tokens.length; i++) {
+      const tok = tokens[i];
+      if (PURE_PUNCT.test(tok)) {
+        if (OPEN_PUNCT.test(tok)) { leadingBuffer += tok; }
+        else if (result.length > 0) { result[result.length - 1] += tok; }
+        else { leadingBuffer += tok; }
+        continue;
+      }
+      result.push(leadingBuffer + tok);
+      leadingBuffer = "";
+    }
+    if (leadingBuffer) {
+      if (result.length) result[result.length - 1] += leadingBuffer;
+      else result.push(leadingBuffer);
+    }
+    return result;
+  }
+
+  function buildLightningPanel(panel) {
+    let ltSpeed = 1.7;
+    panel.appendChild(makeLabel("Speed"));
+    const speedRow = document.createElement("div");
+    speedRow.className = "sb-row";
+    speedRow.style.padding = "6px 16px 10px";
+    const speedNum = makeNumDisplay(ltSpeed);
+    speedRow.appendChild(makeActionBtn("Slower", false, () => { ltSpeed = Math.max(0.1, +(ltSpeed - 0.1).toFixed(1)); updateNum(speedNum, ltSpeed); }));
+    speedRow.appendChild(speedNum);
+    speedRow.appendChild(makeActionBtn("Faster", true, () => { ltSpeed = Math.min(10, +(ltSpeed + 0.1).toFixed(1)); updateNum(speedNum, ltSpeed); }));
+    panel.appendChild(speedRow);
+    const startBtn = document.createElement("button");
+    startBtn.className = "sb-lt-start";
+    startBtn.textContent = "Start";
+    startBtn.addEventListener("click", () => { closeAllDropdowns(); launchLightningOverlay(ltSpeed); });
+    panel.appendChild(startBtn);
+  }
+
+  function launchLightningOverlay(initialSpeed) {
+    if (_findOpen) closeFind();
+
+    const rawTokens = _allParagraphs.map((p) => p.text).join(" ").split(/\s+/).filter(Boolean);
+    const words = mergePunctuationTokens(rawTokens);
+    if (!words.length) return;
+
+    let idx = 0;
+    let speed = initialSpeed;
+    let ltInterval = null;
+    let paused = false;
+    let orpColor = "#e05050";
+
+    const overlay = document.createElement("div");
+    overlay.id = "sb-lt-overlay";
+    overlay.style.cssText = "position:fixed;inset:0;z-index:20000;background:#0a0a0f;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:40px;";
+
+    const progressWrap = document.createElement("div");
+    progressWrap.style.cssText = "position:absolute;top:0;left:0;right:0;height:8px;background:rgba(255,255,255,0.1);cursor:pointer;z-index:1;";
+    const progressBar = document.createElement("div");
+    progressBar.style.cssText = "height:100%;background:#4a9eff;width:0%;transition:width 0.08s linear;pointer-events:none";
+    progressWrap.appendChild(progressBar);
+
+    const scrubTooltip = document.createElement("div");
+    scrubTooltip.style.cssText = "position:absolute;top:14px;transform:translateX(-50%);background:rgba(0,0,0,0.75);color:#fff;font-size:11px;font-family:sans-serif;padding:3px 7px;border-radius:4px;pointer-events:none;opacity:0;transition:opacity 0.1s;white-space:nowrap;";
+    progressWrap.appendChild(scrubTooltip);
+    overlay.appendChild(progressWrap);
+
+    function scrubToPosition(e) {
+      const rect = progressWrap.getBoundingClientRect();
+      const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      idx = Math.floor(ratio * words.length);
+      progressBar.style.width = ratio * 100 + "%";
+      const si = Math.min(idx, words.length - 1);
+      if (streamMode) { initStreamX(si); renderStream(si, false); } else renderWord(words[si]);
+      counter.textContent = `${idx + 1} / ${words.length}`;
+    }
+
+    function showScrubTooltip(e) {
+      const rect = progressWrap.getBoundingClientRect();
+      const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      const wordIdx = Math.min(Math.floor(ratio * words.length), words.length - 1);
+      scrubTooltip.textContent = `${wordIdx + 1} / ${words.length}`;
+      scrubTooltip.style.left = ratio * 100 + "%";
+      scrubTooltip.style.opacity = "1";
+    }
+
+    let isScrubbing = false;
+    progressWrap.addEventListener("mousedown", (e) => {
+      isScrubbing = true;
+      const wasPaused = paused;
+      if (!paused) { clearTimeout(ltInterval); ltInterval = null; }
+      scrubToPosition(e);
+      showScrubTooltip(e);
+      function onMove(e) { if (isScrubbing) { scrubToPosition(e); showScrubTooltip(e); } }
+      function onUp() {
+        isScrubbing = false;
+        scrubTooltip.style.opacity = "0";
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+        if (!wasPaused) { paused = false; restartTimer(); }
+      }
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+    });
+    progressWrap.addEventListener("mousemove", (e) => { if (!isScrubbing) showScrubTooltip(e); });
+    progressWrap.addEventListener("mouseleave", () => { if (!isScrubbing) scrubTooltip.style.opacity = "0"; });
+
+    const wordFrame = document.createElement("div");
+    wordFrame.style.cssText = "width:min(780px,88vw);height:160px;display:flex;align-items:center;justify-content:center;border:2px solid rgba(255,255,255,0.12);border-radius:16px;background:rgba(255,255,255,0.03);box-shadow:0 0 40px rgba(0,0,0,0.4);padding:0 32px;position:relative;overflow:hidden;";
+
+    const ORP_ANCHOR = 296;
+    const TICK_ANCHOR = ORP_ANCHOR + 32;
+    const tickTop = document.createElement("div");
+    tickTop.style.cssText = `position:absolute;top:-2px;left:${TICK_ANCHOR}px;width:2px;height:14px;background:${orpColor};border-radius:1px;transform:translateX(-50%)`;
+    const tickBottom = document.createElement("div");
+    tickBottom.style.cssText = `position:absolute;bottom:-2px;left:${TICK_ANCHOR}px;width:2px;height:14px;background:${orpColor};border-radius:1px;transform:translateX(-50%)`;
+    wordFrame.appendChild(tickTop); wordFrame.appendChild(tickBottom);
+
+    const wordRow = document.createElement("div");
+    wordRow.style.cssText = "display:flex;align-items:baseline;white-space:nowrap;user-select:none;width:100%";
+    const beforeSpan = document.createElement("span");
+    beforeSpan.style.cssText = `display:inline-block;width:${ORP_ANCHOR - 16}px;text-align:right;font-size:56px;font-weight:600;color:#e8f0ff;letter-spacing:0.02em;font-family:Georgia,serif;overflow:hidden;`;
+    const orpSpan = document.createElement("span");
+    orpSpan.style.cssText = `font-size:56px;font-weight:600;color:${orpColor};letter-spacing:0.02em;font-family:Georgia,serif;flex-shrink:0;`;
+    const afterSpan = document.createElement("span");
+    afterSpan.style.cssText = "font-size:56px;font-weight:600;color:#e8f0ff;letter-spacing:0.02em;font-family:Georgia,serif;flex:1;";
+    wordRow.appendChild(beforeSpan); wordRow.appendChild(orpSpan); wordRow.appendChild(afterSpan);
+    wordFrame.appendChild(wordRow);
+
+    const STREAM_FONT = 30, STREAM_BEFORE = 2, STREAM_AFTER = 6, STREAM_PAD = 16;
+    const POOL_SIZE = STREAM_BEFORE + 1 + STREAM_AFTER + 4;
+    const streamStrip = document.createElement("div");
+    streamStrip.style.cssText = "position:absolute;display:none;top:0;bottom:0;left:0;will-change:transform;pointer-events:none;";
+    const streamSpans = [];
+    for (let i = 0; i < POOL_SIZE; i++) {
+      const span = document.createElement("span");
+      span.style.cssText = "position:absolute;font-size:" + STREAM_FONT + "px;font-weight:500;font-family:Georgia,serif;letter-spacing:0.02em;padding:0 " + STREAM_PAD + "px;white-space:nowrap;top:50%;transform:translateY(-50%);";
+      streamStrip.appendChild(span);
+      streamSpans.push(span);
+    }
+    wordFrame.appendChild(streamStrip);
+
+    const measurer = document.createElement("span");
+    measurer.style.cssText = "position:fixed;visibility:hidden;top:-9999px;font-size:" + STREAM_FONT + "px;font-weight:500;font-family:Georgia,serif;letter-spacing:0.02em;white-space:nowrap;padding:0 " + STREAM_PAD + "px";
+    document.body.appendChild(measurer);
+    const widthCache = new Map();
+    function measureWord(w) {
+      if (!w) return 0;
+      if (widthCache.has(w)) return widthCache.get(w);
+      measurer.textContent = w;
+      const width = measurer.offsetWidth;
+      widthCache.set(w, width);
+      return width;
+    }
+    const wLeft = [];
+    let wLeftMax = -1;
+    function ensureLeft(upTo) {
+      for (let i = wLeftMax + 1; i <= upTo && i < words.length; i++) {
+        wLeft[i] = i === 0 ? 0 : wLeft[i - 1] + measureWord(words[i - 1]);
+        wLeftMax = i;
+      }
+    }
+    function focusTranslateX(fi) {
+      ensureLeft(fi);
+      return ORP_ANCHOR - (wLeft[fi] || 0) - measureWord(words[fi] || "") * 0.5;
+    }
+    let streamX = 0;
+    function initStreamX(fi) { streamX = focusTranslateX(fi); }
+    const OPACITIES = [0.12, 0.28, 1.0, 0.7, 0.48, 0.3, 0.18, 0.1, 0.05, 0.03, 0.02, 0.01];
+    function updateStreamSpans(focusIdx) {
+      const start = focusIdx - STREAM_BEFORE;
+      for (let s = 0; s < POOL_SIZE; s++) {
+        const wi = start + s;
+        const word = wi >= 0 && wi < words.length ? words[wi] : "";
+        const span = streamSpans[s];
+        span.textContent = word;
+        span.style.color = ltFontColor;
+        span.style.fontWeight = wi === focusIdx ? "700" : "500";
+        span.style.opacity = String(OPACITIES[s] !== undefined ? OPACITIES[s] : 0.01);
+        if (word) { ensureLeft(wi); span.style.left = (wLeft[wi] || 0) + "px"; } else { span.style.left = "-9999px"; }
+      }
+    }
+    overlay.appendChild(wordFrame);
+
+    function orpIndex(word) {
+      const len = word.length;
+      if (len <= 1) return 0;
+      if (len <= 5) return 1;
+      if (len <= 9) return 2;
+      if (len <= 13) return 3;
+      return 4;
+    }
+    function renderWord(word) {
+      const i = orpIndex(word);
+      beforeSpan.textContent = word.slice(0, i);
+      orpSpan.textContent = word[i];
+      afterSpan.textContent = word.slice(i + 1);
+    }
+    function renderMessage(msg) {
+      beforeSpan.textContent = ""; orpSpan.textContent = ""; afterSpan.textContent = msg;
+      afterSpan.style.textAlign = "center";
+    }
+    function renderStream(focusIdx, animate) {
+      updateStreamSpans(focusIdx);
+      const tx = focusTranslateX(focusIdx);
+      const tickMs = 60000 / (speed * 200);
+      streamStrip.style.transition = animate === false || paused ? "none" : "transform " + tickMs * 0.88 + "ms linear";
+      streamStrip.style.transform = "translateX(" + tx + "px)";
+    }
+    function advanceStream(focusIdx) { renderStream(focusIdx, true); }
+    let streamMode = false;
+    renderWord(words[0]);
+
+    const counter = document.createElement("div");
+    counter.style.cssText = "font-size:13px;color:rgba(255,255,255,0.3);font-family:sans-serif;letter-spacing:1px";
+    counter.textContent = `1 / ${words.length}`;
+    overlay.appendChild(counter);
+
+    const controls = document.createElement("div");
+    controls.style.cssText = "display:flex;align-items:center;gap:16px";
+    const slowBtn = document.createElement("button");
+    slowBtn.textContent = "− Slower";
+    slowBtn.style.cssText = "padding:10px 20px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#aaa;font-size:14px;cursor:pointer;font-family:sans-serif";
+    slowBtn.addEventListener("click", () => { speed = Math.max(0.1, +(speed - 0.1).toFixed(1)); updateSpeedDisplay(); restartTimer(); });
+    const speedDisplay = document.createElement("div");
+    speedDisplay.style.cssText = "min-width:80px;text-align:center;font-size:15px;color:#fff;font-family:sans-serif;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:10px 16px";
+    speedDisplay.textContent = speed + "×";
+    const fastBtn = document.createElement("button");
+    fastBtn.textContent = "Faster +";
+    fastBtn.style.cssText = slowBtn.style.cssText;
+    fastBtn.addEventListener("click", () => { speed = Math.min(10, +(speed + 0.1).toFixed(1)); updateSpeedDisplay(); restartTimer(); });
+    const pauseBtn = document.createElement("button");
+    pauseBtn.textContent = "Pause";
+    pauseBtn.style.cssText = "padding:10px 28px;background:#2d5fa8;border:none;border-radius:8px;color:#fff;font-size:15px;font-weight:600;cursor:pointer;font-family:sans-serif";
+    pauseBtn.addEventListener("click", togglePause);
+    const stopBtn = document.createElement("button");
+    stopBtn.textContent = "Stop";
+    stopBtn.style.cssText = "padding:10px 20px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#aaa;font-size:14px;cursor:pointer;font-family:sans-serif";
+    stopBtn.addEventListener("click", teardown);
+    const restartBtn = document.createElement("button");
+    restartBtn.textContent = "Start Over";
+    restartBtn.style.cssText = "padding:10px 20px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#aaa;font-size:14px;cursor:pointer;font-family:sans-serif";
+    restartBtn.addEventListener("click", () => { idx = 0; paused = false; pauseBtn.textContent = "Pause"; restartTimer(); });
+
+    let controlsVisible = true;
+    const focusBtn = document.createElement("button");
+    focusBtn.textContent = "Focus Mode";
+    focusBtn.style.cssText = restartBtn.style.cssText;
+    focusBtn.addEventListener("click", () => {
+      controlsVisible = !controlsVisible;
+      [controls, appearRow, counter, hint].forEach((el) => (el.style.visibility = controlsVisible ? "visible" : "hidden"));
+      focusBtn.style.visibility = "visible";
+      focusBtn.textContent = controlsVisible ? "Focus Mode" : "Show Controls";
+    });
+
+    controls.appendChild(slowBtn); controls.appendChild(speedDisplay); controls.appendChild(fastBtn);
+    controls.appendChild(pauseBtn); controls.appendChild(restartBtn); controls.appendChild(stopBtn); controls.appendChild(focusBtn);
+    overlay.appendChild(controls);
+
+    let ltFontSizePx = 56;
+    let ltFontColor = "#e8f0ff";
+    const appearRow = document.createElement("div");
+    appearRow.style.cssText = "display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center";
+
+    function makeOverlayBtn(label, onClick) {
+      const btn = document.createElement("button");
+      btn.textContent = label;
+      btn.style.cssText = "padding:8px 16px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#ccc;font-size:15px;font-weight:600;cursor:pointer;font-family:sans-serif";
+      btn.addEventListener("click", onClick);
+      return btn;
+    }
+    const smallerFontBtn = makeOverlayBtn("A−", () => {
+      ltFontSizePx = Math.max(24, ltFontSizePx - 8);
+      [beforeSpan, orpSpan, afterSpan].forEach((s) => (s.style.fontSize = ltFontSizePx + "px"));
+    });
+    const largerFontBtn = makeOverlayBtn("A+", () => {
+      ltFontSizePx = Math.min(160, ltFontSizePx + 8);
+      [beforeSpan, orpSpan, afterSpan].forEach((s) => (s.style.fontSize = ltFontSizePx + "px"));
+    });
+
+    const fontColorWrap = document.createElement("div");
+    fontColorWrap.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:4px";
+    const fontColorLabel = document.createElement("span");
+    fontColorLabel.textContent = "Text";
+    fontColorLabel.style.cssText = "font-size:10px;color:rgba(255,255,255,0.35);font-family:sans-serif;letter-spacing:0.5px;text-transform:uppercase";
+    const fontColorPicker = document.createElement("input");
+    fontColorPicker.type = "color"; fontColorPicker.value = ltFontColor;
+    fontColorPicker.style.cssText = "width:40px;height:32px;border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:2px;background:rgba(255,255,255,0.06);cursor:pointer";
+    fontColorPicker.addEventListener("input", () => {
+      ltFontColor = fontColorPicker.value;
+      [beforeSpan, afterSpan].forEach((s) => (s.style.color = fontColorPicker.value));
+      if (streamMode) { const ci = Math.max(0, idx - 1); initStreamX(ci); renderStream(ci, false); }
+    });
+    fontColorWrap.appendChild(fontColorLabel); fontColorWrap.appendChild(fontColorPicker);
+
+    const bgColorWrap = document.createElement("div");
+    bgColorWrap.style.cssText = fontColorWrap.style.cssText;
+    const bgColorLabel = document.createElement("span");
+    bgColorLabel.textContent = "Background";
+    bgColorLabel.style.cssText = fontColorLabel.style.cssText;
+    const bgColorPicker = document.createElement("input");
+    bgColorPicker.type = "color"; bgColorPicker.value = "#0a0a0f";
+    bgColorPicker.style.cssText = fontColorPicker.style.cssText;
+    bgColorPicker.addEventListener("input", () => { overlay.style.background = bgColorPicker.value; });
+    bgColorWrap.appendChild(bgColorLabel); bgColorWrap.appendChild(bgColorPicker);
+
+    const orpColorWrap = document.createElement("div");
+    orpColorWrap.style.cssText = fontColorWrap.style.cssText;
+    const orpColorLabel = document.createElement("span");
+    orpColorLabel.textContent = "Marker";
+    orpColorLabel.style.cssText = fontColorLabel.style.cssText;
+    const orpColorPicker = document.createElement("input");
+    orpColorPicker.type = "color"; orpColorPicker.value = orpColor;
+    orpColorPicker.style.cssText = fontColorPicker.style.cssText;
+    orpColorPicker.addEventListener("input", () => {
+      orpColor = orpColorPicker.value;
+      orpSpan.style.color = orpColor;
+      tickTop.style.background = orpColor;
+      tickBottom.style.background = orpColor;
+    });
+    orpColorWrap.appendChild(orpColorLabel); orpColorWrap.appendChild(orpColorPicker);
+
+    appearRow.appendChild(smallerFontBtn); appearRow.appendChild(largerFontBtn);
+    appearRow.appendChild(fontColorWrap); appearRow.appendChild(bgColorWrap); appearRow.appendChild(orpColorWrap);
+    overlay.appendChild(appearRow);
+
+    const hint = document.createElement("div");
+    hint.style.cssText = "position:absolute;bottom:24px;font-size:12px;color:rgba(255,255,255,0.2);font-family:sans-serif;letter-spacing:0.5px";
+    hint.textContent = "Space to pause · Esc to stop";
+    overlay.appendChild(hint);
+
+    const srPanel = document.getElementById("sb-panel");
+    const toolbar = document.getElementById("sb-toolbar");
+    const pageBg = document.getElementById("sb-page-bg");
+    const navEls = ["sb-page-prev", "sb-page-next", "sb-page-label"].map((id) => document.getElementById(id));
+    if (srPanel) srPanel.style.visibility = "hidden";
+    if (toolbar) toolbar.style.visibility = "hidden";
+    if (pageBg) pageBg.style.visibility = "hidden";
+    navEls.forEach((el) => { if (el) el.style.visibility = "hidden"; });
+
+    document.body.appendChild(overlay);
+
+    function updateSpeedDisplay() { speedDisplay.textContent = speed + "×"; }
+    function punctMultiplier(word) {
+      if (!word) return 1;
+      const last = word[word.length - 1];
+      if (".!?…".includes(last)) return 2.6;
+      if (",;:".includes(last)) return 1.7;
+      if ("—–-".includes(last)) return 1.3;
+      return 1;
+    }
+
+    function restartTimer() {
+      if (ltInterval) { clearTimeout(ltInterval); ltInterval = null; }
+      function tick() {
+        if (paused) return;
+        if (idx >= words.length) {
+          ltInterval = null;
+          renderMessage("— Done —");
+          counter.textContent = "";
+          paused = true;
+          pauseBtn.textContent = "Start Over";
+          return;
+        }
+        const word = words[idx];
+        if (streamMode) { if (idx === 0) { initStreamX(0); renderStream(0, false); } else advanceStream(idx); }
+        else { renderWord(word); }
+        counter.textContent = `${idx + 1} / ${words.length}`;
+        progressBar.style.width = (idx / words.length) * 100 + "%";
+        idx++;
+        const baseMs = 60000 / (speed * 200);
+        const delay = baseMs * punctMultiplier(word);
+        ltInterval = setTimeout(tick, delay);
+      }
+      const baseMs = 60000 / (speed * 200);
+      ltInterval = setTimeout(tick, baseMs);
+    }
+
+    function togglePause() {
+      if (pauseBtn.textContent === "Start Over") { idx = 0; paused = false; pauseBtn.textContent = "Pause"; restartTimer(); return; }
+      paused = !paused;
+      if (paused) { clearTimeout(ltInterval); ltInterval = null; pauseBtn.textContent = "Resume"; }
+      else { pauseBtn.textContent = "Pause"; restartTimer(); }
+    }
+
+    function teardown() {
+      if (ltInterval) clearTimeout(ltInterval);
+      overlay.remove();
+      measurer.remove();
+      document.removeEventListener("keydown", onKey);
+      if (srPanel) srPanel.style.visibility = "";
+      if (toolbar) toolbar.style.visibility = "";
+      if (pageBg) pageBg.style.visibility = "";
+      navEls.forEach((el) => { if (el) el.style.visibility = ""; });
+    }
+
+    function onKey(e) {
+      e.stopPropagation();
+      if (e.key === "Escape") teardown();
+      if (e.key === " ") { e.preventDefault(); togglePause(); }
+    }
+    document.addEventListener("keydown", onKey);
+
+    restartTimer();
   }
 
   // ── Reading (typography) panel ──────────────────────────────────────
@@ -1638,6 +2339,14 @@ body {
     r.gPicker1.value = rgbToHex(S.gradientStart) || S.gradientStart;
     r.gPicker2.value = rgbToHex(S.gradientEnd) || S.gradientEnd;
   }
+
+  // ── Pass 4: CRT control panel state ─────────────────────────────────
+  // Persists across theme switches on purpose, same as the original —
+  // toggling glow/power off, looking at another theme, then coming back
+  // to CRT should remember it was off, not silently reset.
+  let _crtGlowOn = true;
+  let _crtPoweredOn = true;
+  let _crtApplyGlow = null;
 
   // ── Colors panel ─────────────────────────────────────────────────────
   let _colorsPanelRefs = null;
@@ -1857,12 +2566,305 @@ body {
     });
   }
 
-  // Pass-2 hook: the real reader.js builds each theme's bespoke environment
-  // here (Starry Night's canvas, the CRT control panel, GeoCities' banners/
-  // guestbook/arcade buttons, Scribble Pad's drawing layer). Left as a
-  // marked stub so a later pass can fill this in without restructuring
-  // renderThemeList()'s click handler above.
-  function applyTheme() { /* environment decorations land here in pass 2 */ }
+  // Pass 4: each theme's bespoke environment gets built here. Cleanup always
+  // runs first regardless of target theme, so switching away from Starry
+  // Night (or, once built, CRT/GeoCities/Scribble Pad) removes its DOM and
+  // listeners before the next one — or nothing — gets built.
+  function applyTheme() {
+    const oldCanvas = document.getElementById("sb-starry-canvas");
+    if (oldCanvas) oldCanvas.remove();
+    const oldMoon = document.getElementById("sb-moon");
+    if (oldMoon) oldMoon.remove();
+    if (window._sbMoonResize) {
+      window.removeEventListener("resize", window._sbMoonResize);
+      window._sbMoonResize = null;
+    }
+    if (window._sbStarAnimId) {
+      cancelAnimationFrame(window._sbStarAnimId);
+      window._sbStarAnimId = null;
+    }
+    const oldCrtBtn = document.getElementById("sb-crt-btn");
+    if (oldCrtBtn) oldCrtBtn.remove();
+    const oldCrtGlow = document.getElementById("sb-crt-glow-style");
+    if (oldCrtGlow) oldCrtGlow.remove();
+
+    // Pass-4 hooks still pending: GeoCities environment (banners/guestbook/
+    // arcade), Scribble Pad drawing canvas + ruled lines.
+
+    if (S.theme === "starry") buildStarryNightEnvironment();
+    else if (S.theme === "crt") buildCrtButton();
+  }
+
+  // ── CRT control panel ────────────────────────────────────────────────
+  //
+  //  Deliberate deviation from a straight port here: the original applies
+  //  the glow via filter: drop-shadow() on .__sr-p. That's a documented
+  //  problem — filter: drop-shadow() on an element whose gradient text
+  //  uses background-clip: text causes a GPU compositing conflict and
+  //  visible blur. text-shadow doesn't have that problem (it draws from
+  //  the glyph outlines regardless of how the fill color is being
+  //  applied) and text-shadow is inherited, so setting it on .sb-p is
+  //  enough for it to reach the .sb-line word-spans gradients create.
+  function buildCrtButton() {
+    function applyGlow(on) {
+      _crtGlowOn = on;
+      const existing = document.getElementById("sb-crt-glow-style");
+      if (existing) existing.remove();
+      if (on) {
+        const glowHex = S.gradientsOn ? S.gradientStart : S.fontColor;
+        const rgb = hexToRgb(glowHex) || { r: 51, g: 255, b: 51 };
+        const c1 = `rgba(${rgb.r},${rgb.g},${rgb.b},0.45)`;
+        const c2 = `rgba(${rgb.r},${rgb.g},${rgb.b},0.3)`;
+        const style = document.createElement("style");
+        style.id = "sb-crt-glow-style";
+        style.textContent = `#sb-content .sb-p { text-shadow: 0 0 5px ${c1}, 0 0 2px ${c2}; }`;
+        document.head.appendChild(style);
+      }
+      updatePhosSwitch(on);
+    }
+    _crtApplyGlow = applyGlow;
+
+    function updatePhosSwitch(on) {
+      const top = document.getElementById("sb-crt-phos-top");
+      const bot = document.getElementById("sb-crt-phos-bot");
+      if (!top || !bot) return;
+      if (on) {
+        top.style.background = "#33ff33"; top.style.boxShadow = "0 0 6px rgba(51,255,51,0.6)";
+        bot.style.background = "#0f1a0f"; bot.style.boxShadow = "none";
+      } else {
+        top.style.background = "#0f1a0f"; top.style.boxShadow = "none";
+        bot.style.background = "#33ff33"; bot.style.boxShadow = "0 0 4px rgba(51,255,51,0.4)";
+      }
+    }
+
+    function setPower(on) {
+      _crtPoweredOn = on;
+      const wrap = document.getElementById("sb-crt-btn");
+      const led = document.getElementById("sb-crt-pwr-led");
+      if (!wrap || !led) return;
+      if (on) {
+        wrap.style.opacity = "1"; wrap.style.filter = "none";
+        led.style.background = "#33ff33"; led.style.boxShadow = "0 0 6px #33ff33,0 0 2px #33ff33";
+        const overlay = document.getElementById("sb-crt-off-overlay");
+        if (overlay) overlay.remove();
+      } else {
+        wrap.style.opacity = "0.85"; wrap.style.filter = "brightness(0.5) saturate(0.3)";
+        led.style.background = "#1a2a1a"; led.style.boxShadow = "none";
+        const overlay = document.createElement("div");
+        overlay.id = "sb-crt-off-overlay";
+        overlay.style.cssText = "position:absolute;inset:0;z-index:10;cursor:pointer;";
+        overlay.addEventListener("click", () => setPower(true));
+        wrap.appendChild(overlay);
+      }
+    }
+
+    const wrap = document.createElement("div");
+    wrap.id = "sb-crt-btn";
+    wrap.style.cssText = "position:fixed;top:78px;right:60px;z-index:9999997;width:132px;background:#141a14;border:2px solid #1e281e;border-radius:3px;font-family:'VT323',monospace;user-select:none;box-shadow:3px 3px 0 #080c08,inset 0 1px 0 rgba(255,255,255,0.04);overflow:hidden;transition:opacity 0.4s,filter 0.4s;";
+
+    const vent = document.createElement("div");
+    vent.style.cssText = "padding:8px 10px 6px;border-bottom:1px solid #1a221a;transition:opacity 0.4s;";
+    for (let i = 0; i < 5; i++) {
+      const slot = document.createElement("div");
+      slot.style.cssText = "height:3px;margin-bottom:3px;background:repeating-linear-gradient(90deg,#0d130d 0px,#0d130d 3px,#1e281e 3px,#1e281e 7px);border-radius:1px;";
+      vent.appendChild(slot);
+    }
+    wrap.appendChild(vent);
+
+    const pwrRow = document.createElement("div");
+    pwrRow.style.cssText = "padding:8px 10px;border-bottom:1px solid #1a221a;display:flex;align-items:center;justify-content:space-between;";
+    const pwrLabel = document.createElement("span");
+    pwrLabel.style.cssText = "font-size:13px;color:#3a5a3a;letter-spacing:2px;";
+    pwrLabel.textContent = "PWR";
+    const pwrLed = document.createElement("div");
+    pwrLed.id = "sb-crt-pwr-led";
+    pwrLed.title = "Power";
+    pwrLed.style.cssText = "width:9px;height:9px;border-radius:50%;background:#33ff33;box-shadow:0 0 6px #33ff33,0 0 2px #33ff33;cursor:pointer;transition:background 0.3s,box-shadow 0.3s;flex-shrink:0;";
+    pwrLed.addEventListener("click", () => setPower(!_crtPoweredOn));
+    pwrRow.appendChild(pwrLabel); pwrRow.appendChild(pwrLed);
+    wrap.appendChild(pwrRow);
+
+    function makeMechBtn(label, onClick) {
+      const row = document.createElement("div");
+      row.style.cssText = "padding:8px 10px;border-bottom:1px solid #1a221a;";
+      const btn = document.createElement("button");
+      btn.style.cssText = "width:100%;background:#0f1a0f;border:1px solid #2a3a2a;border-radius:2px;color:#33cc33;font-family:'VT323',monospace;font-size:15px;letter-spacing:2px;padding:5px 0;cursor:pointer;box-shadow:inset 0 -2px 0 #080f08,inset 0 1px 0 rgba(255,255,255,0.04);transition:color 0.08s;";
+      btn.textContent = label;
+      const pressDown = () => { btn.style.boxShadow = "inset 0 2px 0 #080f08"; btn.style.transform = "translateY(1px)"; };
+      const pressUp = () => { btn.style.boxShadow = "inset 0 -2px 0 #080f08,inset 0 1px 0 rgba(255,255,255,0.04)"; btn.style.transform = ""; };
+      btn.addEventListener("mousedown", pressDown);
+      btn.addEventListener("mouseup", pressUp);
+      btn.addEventListener("mouseleave", pressUp);
+      btn.addEventListener("click", onClick);
+      row.appendChild(btn);
+      return row;
+    }
+
+    wrap.appendChild(makeMechBtn("RST", () => {
+      if (_isPaginated) goToPage(0);
+      else window.scrollTo({ top: 0, behavior: "smooth" });
+    }));
+
+    wrap.appendChild(makeMechBtn("TURBO", () => {
+      closeAllDropdowns();
+      launchLightningOverlay(1.7);
+    }));
+
+    const phosRow = document.createElement("div");
+    phosRow.style.cssText = "padding:8px 10px;display:flex;align-items:center;justify-content:space-between;";
+    const phosLabel = document.createElement("span");
+    phosLabel.style.cssText = "font-size:13px;color:#3a5a3a;letter-spacing:2px;";
+    phosLabel.textContent = "PHOS";
+
+    const rocker = document.createElement("div");
+    rocker.style.cssText = "cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;";
+    const rockerTop = document.createElement("div");
+    rockerTop.id = "sb-crt-phos-top";
+    rockerTop.style.cssText = "width:18px;height:10px;border-radius:2px 2px 0 0;transition:background 0.15s,box-shadow 0.15s;";
+    const rockerMid = document.createElement("div");
+    rockerMid.style.cssText = "width:22px;height:3px;background:#1e281e;border-radius:1px;";
+    const rockerBot = document.createElement("div");
+    rockerBot.id = "sb-crt-phos-bot";
+    rockerBot.style.cssText = "width:18px;height:10px;border-radius:0 0 2px 2px;border:1px solid #2a3a2a;transition:background 0.15s,box-shadow 0.15s;";
+    rocker.appendChild(rockerTop); rocker.appendChild(rockerMid); rocker.appendChild(rockerBot);
+    rocker.addEventListener("click", () => applyGlow(!_crtGlowOn));
+
+    phosRow.appendChild(phosLabel); phosRow.appendChild(rocker);
+    wrap.appendChild(phosRow);
+
+    document.body.appendChild(wrap);
+    applyGlow(_crtGlowOn);
+    // Deliberate fix, not in the original: apply the persisted power state
+    // to the freshly-built widget. Without this, rebuilding after a theme
+    // switch always looks powered-on even if _crtPoweredOn is still false,
+    // so the LED's first click after a rebuild would silently no-op.
+    setPower(_crtPoweredOn);
+  }
+
+  function buildStarryNightEnvironment() {
+    const canvas = document.createElement("canvas");
+    canvas.id = "sb-starry-canvas";
+    canvas.style.cssText = "position:fixed;inset:0;z-index:0;pointer-events:none;width:100vw;height:100vh;";
+    const W = window.innerWidth, H = window.innerHeight;
+    canvas.width = W; canvas.height = H;
+    const pageBgEl = document.getElementById("sb-page-bg");
+    document.body.insertBefore(canvas, pageBgEl.nextSibling);
+    const ctx = canvas.getContext("2d");
+
+    const rng = ((seed) => () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; })(42);
+    const stars = Array.from({ length: 260 }, () => {
+      const size = rng() < 0.06 ? 1.5 + rng() * 1.2 : 0.4 + rng() * 0.9;
+      const bright = rng() < 0.08;
+      return {
+        x: rng() * W, y: rng() * H, r: size,
+        base: bright ? 0.55 + rng() * 0.35 : 0.12 + rng() * 0.38,
+        twinkleSpeed: 0.3 + rng() * 1.2, twinklePhase: rng() * Math.PI * 2,
+        twinkleAmp: bright ? 0.25 : 0.04 + rng() * 0.14, bright,
+      };
+    });
+    const heroStars = [
+      { x: W * 0.7, y: H * 0.14 }, { x: W * 0.86, y: H * 0.38 }, { x: W * 0.6, y: H * 0.7 },
+      { x: W * 0.77, y: H * 0.86 }, { x: W * 0.54, y: H * 0.23 }, { x: W * 0.92, y: H * 0.23 },
+    ].map(h => Object.assign({}, h, { r: 1.4 + Math.random() * 0.7 }));
+
+    function drawGlowStar(x, y, r, alpha) {
+      const grd = ctx.createRadialGradient(x, y, 0, x, y, r * 5);
+      grd.addColorStop(0, `rgba(200,230,248,${alpha * 0.45})`);
+      grd.addColorStop(0.4, `rgba(170,210,235,${alpha * 0.12})`);
+      grd.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.beginPath(); ctx.arc(x, y, r * 5, 0, Math.PI * 2); ctx.fillStyle = grd; ctx.fill();
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = `rgba(220,240,252,${alpha})`; ctx.fill();
+    }
+
+    function drawStars(now) {
+      if (!document.getElementById("sb-starry-canvas")) return;
+      const t = now / 1000;
+      ctx.clearRect(0, 0, W, H);
+      for (const s of stars) {
+        const alpha = Math.max(0, s.base + Math.sin(t * s.twinkleSpeed + s.twinklePhase) * s.twinkleAmp);
+        if (s.bright || s.r > 1.2) { drawGlowStar(s.x, s.y, s.r, alpha); }
+        else { ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fillStyle = `rgba(210,235,250,${alpha})`; ctx.fill(); }
+      }
+      for (const h of heroStars) {
+        const twinkle = 0.7 + 0.25 * Math.sin(t * 0.6 + h.x * 0.01);
+        drawGlowStar(h.x, h.y, h.r, twinkle);
+        ctx.save();
+        ctx.translate(h.x, h.y);
+        for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 2) {
+          const len = h.r * 9;
+          const grd = ctx.createLinearGradient(0, 0, Math.cos(angle) * len, Math.sin(angle) * len);
+          grd.addColorStop(0, `rgba(200,230,250,${0.55 * twinkle})`);
+          grd.addColorStop(1, "rgba(200,230,250,0)");
+          ctx.beginPath(); ctx.lineWidth = 0.7; ctx.strokeStyle = grd;
+          ctx.moveTo(0, 0); ctx.lineTo(Math.cos(angle) * len, Math.sin(angle) * len); ctx.stroke();
+        }
+        ctx.restore();
+      }
+      window._sbStarAnimId = requestAnimationFrame(drawStars);
+    }
+    window._sbStarAnimId = requestAnimationFrame(drawStars);
+
+    if (!document.getElementById("sb-star-style")) {
+      const ss = document.createElement("style");
+      ss.id = "sb-star-style";
+      ss.textContent = `
+        @keyframes sb-star-pulse {
+          0%,100% { opacity:0.85; transform:translate(-50%,-50%) scale(1); }
+          50%      { opacity:0.55; transform:translate(-50%,-50%) scale(0.93); }
+        }
+        #sb-moon { cursor:pointer; }
+      `;
+      document.head.appendChild(ss);
+    }
+
+    const moon = document.createElement("div");
+    moon.id = "sb-moon";
+    moon.style.cssText = "position:fixed;z-index:9997;width:59px;height:59px;";
+
+    const halo = document.createElement("div");
+    halo.style.cssText = "position:absolute;width:170px;height:170px;top:50%;left:50%;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,rgba(160,210,240,0.055) 0%,rgba(100,170,210,0.025) 45%,transparent 70%);pointer-events:none;";
+
+    const disc = document.createElement("div");
+    disc.style.cssText = "width:59px;height:59px;border-radius:50%;background:radial-gradient(circle at 38% 38%,#e8f4fa 0%,#c8e4f0 45%,#9ac8e0 100%);box-shadow:0 0 14px rgba(160,210,240,0.38),0 0 35px rgba(120,180,220,0.16);position:relative;overflow:hidden;";
+
+    const crescent = document.createElement("div");
+    crescent.style.cssText = "position:absolute;width:48px;height:48px;border-radius:50%;background:#06181f;top:-3px;left:13px;box-shadow:inset 0 0 6px rgba(6,24,31,0.6);";
+    disc.appendChild(crescent);
+
+    const starEl = document.createElement("div");
+    starEl.id = "sb-moon-star";
+    starEl.style.cssText = "display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;animation:sb-star-pulse 4s ease-in-out infinite;";
+
+    const starCore = document.createElement("div");
+    starCore.style.cssText = "position:absolute;width:14px;height:14px;top:50%;left:50%;transform:translate(-50%,-50%);border-radius:50%;background:#fffff8;box-shadow:0 0 3px 1px rgba(255,255,240,0.9),0 0 10px 4px rgba(255,255,220,0.55),0 0 24px 10px rgba(255,250,200,0.35),0 0 50px 20px rgba(255,240,160,0.18),0 0 90px 36px rgba(255,220,120,0.08);";
+    starEl.appendChild(starCore);
+
+    [0, 45, 90, 135].forEach((angle) => {
+      const ray = document.createElement("div");
+      ray.style.cssText = `position:absolute;width:2px;height:72px;top:50%;left:50%;transform:translate(-50%,-50%) rotate(${angle}deg);background:linear-gradient(to bottom,rgba(255,255,220,0),rgba(255,255,220,0.85) 50%,rgba(255,255,220,0));border-radius:1px;`;
+      starEl.appendChild(ray);
+    });
+
+    moon.appendChild(halo); moon.appendChild(disc); moon.appendChild(starEl);
+    document.body.appendChild(moon);
+
+    let _moonIsStar = false;
+    moon.addEventListener("click", () => {
+      _moonIsStar = !_moonIsStar;
+      halo.style.display = _moonIsStar ? "none" : "";
+      disc.style.display = _moonIsStar ? "none" : "";
+      starEl.style.display = _moonIsStar ? "block" : "none";
+    });
+
+    function positionMoon() {
+      if (!document.getElementById("sb-moon")) return;
+      moon.style.top = "78px";
+      moon.style.right = "60px";
+    }
+    positionMoon();
+    window._sbMoonResize = positionMoon;
+    window.addEventListener("resize", window._sbMoonResize);
+  }
 
   // ── Pagination nav (footer + side zones) ────────────────────────────
   function buildPageNav() {
@@ -1963,19 +2965,22 @@ body {
         buildToolbar();
         buildPageNav();
         buildNotesDrawer();
+        buildFindUI();
         toolbarBuilt = true;
       }
 
       introEl.style.display = "none";
       readerEl.style.display = "block";
 
-      renderText(document.getElementById("sb-content"), text);
+      renderText(document.getElementById("sb-content"), joinPdfLineWraps(text));
+      applyTheme();
       applyStyles();
     });
 
     backBtn.addEventListener("click", () => {
       if (_notesDrawerOpen) closeNotesDrawer();
       if (_editModeActive) exitEditMode(false);
+      if (_findOpen) closeFind();
       readerEl.style.display = "none";
       introEl.style.display = "flex";
     });
@@ -1997,8 +3002,17 @@ body {
     });
 
     document.addEventListener("keydown", (e) => {
+      if (readerEl.style.display !== "block") return;
+      if ((e.ctrlKey || e.metaKey) && (e.key === "f" || e.key === "F")) {
+        const activeEl = document.activeElement;
+        const findInput = document.getElementById("sb-find-input");
+        if (activeEl === findInput) { e.preventDefault(); findInput.select(); return; }
+        const activeTag = activeEl && activeEl.tagName;
+        if (activeTag !== "INPUT" && activeTag !== "TEXTAREA") { e.preventDefault(); openFind(); return; }
+      }
       if (e.key !== "Escape") return;
       if (_editModeActive) { e.preventDefault(); exitEditMode(false); return; }
+      if (_findOpen) { e.preventDefault(); closeFind(); return; }
       if (_notesDrawerOpen) { e.preventDefault(); closeNotesDrawer(); return; }
     });
   });
